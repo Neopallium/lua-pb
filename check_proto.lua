@@ -1,6 +1,6 @@
 
 local lp = require"lpeg"
-local parser = require"src.proto.parser"
+local parser = require"pb.proto.parser"
 
 -- read .proto file.
 local f = assert(io.open(arg[1]))

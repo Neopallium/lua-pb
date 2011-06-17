@@ -1,8 +1,8 @@
 
 local lp = require"lpeg"
-local scanner = require"src.proto.scanner"
-local grammar = require"src.proto.grammar"
-local parser = require"src.proto.parser"
+local scanner = require"pb.proto.scanner"
+local grammar = require"pb.proto.grammar"
+local parser = require"pb.proto.parser"
 
 -- read .proto file.
 local f = assert(io.open(arg[1]))

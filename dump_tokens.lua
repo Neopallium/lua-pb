@@ -1,6 +1,6 @@
 
 local lp = require"lpeg"
-local scanner = require"src.proto.scanner"
+local scanner = require"pb.proto.scanner"
 
 local patt = lp.Ct(
 	--(lp.C(scanner.TOKEN) + scanner.SPACE + scanner.COMMENT)^0
