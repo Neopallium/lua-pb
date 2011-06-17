@@ -96,24 +96,24 @@ UserType = (V'.')^-1 * V'Name',
 Proto = (S* (V'Message' + V'Extend' + V'Enum' + V'Import' + V'Package' + V'Option' +
 	V'Service' + V';'))^0 *S,
 
-Import = V'IMPORT' *S* V'StrLit' *E,
-Package = V'PACKAGE' *S* V'Name' *E,
+Import = V'IMPORT' *S* eV'StrLit' *E,
+Package = V'PACKAGE' *S* eV'Name' *E,
 
 Option = V'OPTION' *S* V'OptionBody' *E,
 OptionBody = eV'Name' *S* eV'=' *S* eV'Constant',
 
-Extend = V'EXTEND' *S* V'UserType' *S* V'{' * (S* (V'Group' + V'Field' + V';'))^0 *S* V'}',
+Extend = V'EXTEND' *S* eV'UserType' *S* eV'{' * (S* (V'Group' + V'Field' + V';'))^0 *S* eV'}',
 
-Enum = V'ENUM' *S* V'ID' *S* V'{' * (S* (V'Option' + V'EnumField' + V';'))^0 *S* V'}',
+Enum = V'ENUM' *S* V'ID' *S* eV'{' * (S* (V'Option' + V'EnumField' + V';'))^0 *S* eV'}',
 EnumField = V'ID' *S* eV'=' *S* eV'IntLit' *E,
 
-Service = V'SERVICE' *S* V'ID' *S* V'{' * (S* (V'Option' + V'rpc' + V';'))^0 *S* V'}',
+Service = V'SERVICE' *S* eV'ID' *S* eV'{' * (S* (V'Option' + V'rpc' + V';'))^0 *S* eV'}',
 rpc = V'RPC' *S* eV'ID' *S* eV'(' *S* V'UserType' *S* V')' *S*
 	eV'RETURNS' *S* eV'(' *S* eV'UserType' *S* eV')' *E,
 
 Group = V'FieldRule' *S* V'GROUP' *S* eV'GroupName' *S* eV'=' *S* eV'IntLit' *S* V'MessageBody',
 
-Message = V'MESSAGE' *S* V'ID' *S* V'MessageBody',
+Message = V'MESSAGE' *S* eV'ID' *S* V'MessageBody',
 
 MessageBody = eV'{' * (S* (V'Group' + V'Field' + V'Enum' + V'Message' + V'Extend' + V'Extensions'
 	+ V'Option' + V';'))^0 *S* eV'}',
@@ -123,9 +123,10 @@ Field = V'FieldRule' *S* eV'Type' *S* eV'ID' *S* eV'=' *S* eV'IntLit' *S*
 FieldOptions = listOf(V'OptionBody', S* V',' *S),
 FieldRule = (V'REQUIRED' + V'OPTIONAL' + V'REPEATED'),
 
-Extensions = V'EXTENSIONS' *S* eV'ExtensionList' *E,
+Extensions = V'EXTENSIONS' *S* V'ExtensionList' *E,
 ExtensionList = listOf(V'Extension', S* V',' *S),
-Extension =  V'IntLit' *S* (V'TO' *S* (V'IntLit' + V'MAX')^1 )^-1,
+Extension =  eV'IntLit' *S* (V'TO' *S*
+	(V'IntLit' + V'MAX' + error("expected integer or 'max'")) )^-1,
 
 Type = (V'DOUBLE' + V'FLOAT' + 
 V'INT32' + V'INT64' +
