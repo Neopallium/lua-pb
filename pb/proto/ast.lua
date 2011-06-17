@@ -21,17 +21,36 @@
 local lower = string.lower
 local tremove = table.remove
 
+local pack = string.match(...,"[a-zA-Z0-9.]*[.]") or ''
+
 local lp = require"lpeg"
-local scanner = require"src.proto.scanner"
-local grammar = require"src.proto.grammar"
-local parser = require"src.proto.parser"
+local scanner = require(pack .. "scanner")
+local grammar = require(pack .. "grammar")
+local parser = require(pack .. "parser")
+
+-- create sub-table if it doesn't exists
+local function create(tab, sub_tab)
+	if not tab[sub_tab] then
+		tab[sub_tab] = {}
+	end
+	return tab[sub_tab]
+end
 
 local Cap = grammar.C
+local CapTab = grammar.Ct
+local function node_type(node)
+	return node['.type']
+end
+local function make_node(node_type, node)
+	node = node or {}
+	node['.type'] = node_type
+	return node
+end
 local function CapNode(ntype, ...)
 	local fields = {...}
 	local fcount = #fields
 	return function(...)
-		local node = {ntype = ntype, ...}
+		local node = make_node(ntype, {...})
 		local idx = 0
 		-- process named fields
 		for i=1,fcount do
@@ -44,8 +63,35 @@ local function CapNode(ntype, ...)
 end
 
 local captures = {
-[1] = grammar.Ct,
-Package = CapNode("package"
+[1] = function(...)
+	local proto = {
+		types = {},
+		...
+	}
+	for i=1,#proto do
+		local sub = proto[i]
+		local sub_type = node_type(sub)
+		proto[i] = nil
+		if sub_type == 'option' then
+			create(proto, 'options')
+			proto.options[sub.name] = sub.value
+		elseif sub_type == 'package' then
+			proto.package = sub.name
+		elseif sub_type == 'import' then
+			create(proto, 'imports')
+			proto.imports[sub.name] = sub.value
+		elseif sub_type == 'service' then
+			create(proto, 'services')
+			proto.services[sub.name] = sub
+		else
+			-- map 'name' -> type
+			proto.types[sub.name] = sub
+		end
+	end
+	return proto
+end,
+Package = CapNode("package",
+	"name"
 ),
 Import = CapNode("import",
 	"file"
@@ -53,18 +99,84 @@ Import = CapNode("import",
 Option = CapNode("option",
 	"name", "value"
 ),
-Message = CapNode("message",
-	"name"
-),
-Group = CapNode("group",
-	"rule", "name", "id"
-),
-Enum = CapNode("enum",
-	"name"
-),
-EnumField = CapNode("enum_field",
-	"name", "value"
-),
+Message = function(name, body)
+	local node = make_node('message', body)
+	node.name = name
+	return node
+end,
+MessageBody = function(...)
+	local body = {
+		fields = {},
+		...
+	}
+	local fcount = 0
+	for i=1,#body do
+		-- remove sub-node
+		local sub = body[i]
+		local sub_type = node_type(sub)
+		body[i] = nil
+		if sub_type == 'field' then
+			-- map 'name' -> field
+			body.fields[sub.name] = sub
+			-- map order -> field
+			fcount = fcount + 1
+			body.fields[fcount] = sub
+		elseif sub_type == 'extensions' then
+			local list = create(body, 'extensions')
+			local idx = #list
+			-- append extensions
+			for i=1,#sub do
+				local range = sub[i]
+				idx = idx + 1
+				list[idx] = range
+			end
+		else
+			create(body, 'types')
+			-- map 'name' -> sub-type
+			body.types[sub.name] = sub
+		end
+	end
+	return body
+end,
+Group = function(rule, name, id, body)
+	local group_ftype = 'group_' .. name
+	local group = make_node('group', body)
+	group.name = group_ftype
+	local field = make_node('field')
+	field.rule = rule
+	field.ftype = group_ftype
+	field.name = name
+	field.id = id
+	return group, field
+end,
+Enum = function(name, ...)
+	local node = make_node('enum', {...})
+	local options
+	local values = {}
+	node.name = name
+	node.values = values
+	for i=1,#node do
+		-- remove next sub-node.
+		local sub = node[i]
+		local sub_type = node_type(sub)
+		node[i] = nil
+		-- option/enum_field
+		if sub_type == 'option' then
+			if not options then
+				options = {} -- Enum has options
+			end
+			options[sub.name] = sub.value
+		else
+			-- map 'name' -> value
+			values[sub[1]] = sub[2]
+			-- map value -> 'name'
+			values[sub[2]] = sub[1]
+		end
+	end
+	node.options = options
+	return node
+end,
+EnumField = CapTab,
 Field = CapNode("field",
 	"rule", "ftype", "name", "id", "options"
 ),
@@ -81,10 +193,22 @@ FieldOptions = function(...)
 	end
 	return options
 end,
+Extensions = CapNode("extensions"
+),
+Extension = function(first, last)
+	if not last then
+		-- single value.
+		return first
+	end
+	-- range
+	return {first, last}
+end,
 Service = CapNode("service",
 	"name"
 ),
-rpc = CapNode("rpc"),
+rpc = CapNode("rpc",
+	"name", "request", "response"
+),
 
 Name = Cap,
 GroupName = Cap,
