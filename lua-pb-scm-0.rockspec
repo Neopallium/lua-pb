@@ -15,15 +15,15 @@ description	= {
 dependencies = {
 	'lua >= 5.1',
 	'lpeg',
-	'leg',
 }
 build	= {
 	type		= 'none',
 	install = {
 		lua = {
-			['pb.proto.scanner'] = "src/proto/scanner.lua",
-			['pb.proto.grammar'] = "src/proto/grammar.lua",
-			['pb.proto.parser'] = "src/proto/parser.lua",
+			['pb.proto.scanner'] = "pb/proto/scanner.lua",
+			['pb.proto.grammar'] = "pb/proto/grammar.lua",
+			['pb.proto.parser'] = "pb/proto/parser.lua",
+			['pb.proto.ast'] = "pb/proto/ast.lua",
 		}
 	}
 }

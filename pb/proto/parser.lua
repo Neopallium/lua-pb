@@ -40,6 +40,8 @@ local Cc=lp.Cc
 
 module(...)
 
+-- Copyright (c) 2007 Humberto Saraiva Nazareno dos Anjos.
+-- function 'rfind' copied from "leg.parser" in "Leg - LPeg-powered Lua 5.1 grammar"
 -- Searches for the last substring in s which matches pattern
 local function rfind(s, pattern, init, finish)
   init = init or #s
@@ -146,6 +148,8 @@ Constant = (V'BoolLit' + V'ID' + V'SNumLit' + V'StrLit'),
 grammar.complete(rules, scanner.keywords)
 grammar.complete(rules, scanner.symbols)
 
+-- Copyright (c) 2007 Humberto Saraiva Nazareno dos Anjos.
+-- function 'check' copied from "leg.parser" in "Leg - LPeg-powered Lua 5.1 grammar"
 function check(input)
   local builder = P(rules)
   local result = builder:match(input)

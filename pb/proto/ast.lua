@@ -36,8 +36,7 @@ local function create(tab, sub_tab)
 	return tab[sub_tab]
 end
 
-local Cap = grammar.C
-local CapTab = grammar.Ct
+local Cap = function(...) return ... end
 local function node_type(node)
 	return node['.type']
 end
@@ -176,7 +175,9 @@ Enum = function(name, ...)
 	node.options = options
 	return node
 end,
-EnumField = CapTab,
+EnumField = function(...)
+	return {...}
+end,
 Field = CapNode("field",
 	"rule", "ftype", "name", "id", "options"
 ),
