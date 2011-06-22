@@ -14,16 +14,20 @@ description	= {
 }
 dependencies = {
 	'lua >= 5.1',
-	'lpeg',
+	'lpeg >= 0.10',
+	'luabitop >= 1.0.1',
+	'struct >= 1.2',
 }
 build	= {
 	type		= 'none',
 	install = {
 		lua = {
+			['pb'] = "pb.lua",
 			['pb.proto.scanner'] = "pb/proto/scanner.lua",
+			['pb.proto.util'] = "pb/proto/util.lua",
 			['pb.proto.grammar'] = "pb/proto/grammar.lua",
 			['pb.proto.parser'] = "pb/proto/parser.lua",
-			['pb.proto.ast'] = "pb/proto/ast.lua",
+			['pb.standard'] = "pb/standard.lua",
 		}
 	}
 }
