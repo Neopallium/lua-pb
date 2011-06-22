@@ -1,20 +1,18 @@
 local tconcat = table.concat
 
-local data = require'pb.lua.data'
+local fpack = require'pb.standard.pack'
+local funpack = require'pb.standard.unpack'
 local bit = require'bit'
 local utils = require"utils"
 
-local pack = data.pack
-local unpack = data.unpack
-
 local function encode(_type, data)
 	local buf = {}
-	local off = pack[_type](buf, 0, 0, data)
+	local off = fpack[_type](buf, 0, 0, data)
 	return tconcat(buf, '', 1, off)
 end
 
 local function decode(_type, data, off)
-	return unpack[_type](data, off or 1)
+	return funpack[_type](data, off or 1)
 end
 
 local _type = arg[1] or 'varint32'

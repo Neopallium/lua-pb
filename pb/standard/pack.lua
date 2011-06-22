@@ -26,7 +26,6 @@ local tostring = tostring
 local setmetatable = setmetatable
 
 local struct = require"struct"
-local sunpack = struct.unpack
 local spack = struct.pack
 
 local bit = require"bit"
@@ -47,17 +46,8 @@ local function zigzag64(num)
 	end
 	return num
 end
-local function unzigzag64(num)
-	if band(num, 1) == 1 then
-		num = -(num + 1)
-	end
-	return num / 2
-end
 local function zigzag32(num)
 	return bxor(lshift(num, 1), arshift(num, 31))
-end
-local function unzigzag32(num)
-	return bxor(arshift(num, 1), -band(num, 1))
 end
 
 local function varint_next_byte(num)
@@ -76,9 +66,7 @@ module(...)
 
 -- export ZigZag functions.
 _M.zigzag64 = zigzag64
-_M.unzigzag64 = unzigzag64
 _M.zigzag32 = zigzag32
-_M.unzigzag32 = unzigzag32
 
 ----------------------------------------------------------------------------------
 --
@@ -94,55 +82,53 @@ local function pack_varint32(num)
 	return char(varint_next_byte(num))
 end
 
-pack = {
-varint64 = function(buf, off, len, num)
+function varint64(buf, off, len, num)
 	return append(buf, off, len, pack_varint64(num))
-end,
-varint32 = function(buf, off, len, num)
+end
+function varint32(buf, off, len, num)
 	return append(buf, off, len, pack_varint32(num))
-end,
+end
 
-svarint64 = function(buf, off, len, num)
+function svarint64(buf, off, len, num)
 	return append(buf, off, len, pack_varint64(zigzag64(num)))
-end,
+end
 
-svarint32 = function(buf, off, len, num)
+function svarint32(buf, off, len, num)
 	return append(buf, off, len, pack_varint32(zigzag32(num)))
-end,
+end
 
-fixed64 = function(buf, off, len, num)
-	return append(buf, off, len, pack('<I8', num))
-end,
+function fixed64(buf, off, len, num)
+	return append(buf, off, len, spack('<I8', num))
+end
 
-sfixed64 = function(buf, off, len, num)
-	return append(buf, off, len, pack('<i8', num))
-end,
+function sfixed64(buf, off, len, num)
+	return append(buf, off, len, spack('<i8', num))
+end
 
-double = function(buf, off, len, num)
-	return append(buf, off, len, pack('<d', num))
-end,
+function double(buf, off, len, num)
+	return append(buf, off, len, spack('<d', num))
+end
 
-fixed32 = function(buf, off, len, num)
-	return append(buf, off, len, pack('<I4', num))
-end,
+function fixed32(buf, off, len, num)
+	return append(buf, off, len, spack('<I4', num))
+end
 
-sfixed32 = function(buf, off, len, num)
-	return append(buf, off, len, pack('<i4', num))
-end,
+function sfixed32(buf, off, len, num)
+	return append(buf, off, len, spack('<i4', num))
+end
 
-float = function(buf, off, len, num)
-	return append(buf, off, len, pack('<f', num))
-end,
+function float(buf, off, len, num)
+	return append(buf, off, len, spack('<f', num))
+end
 
-string = function(buf, off, len, str)
+function string(buf, off, len, str)
 	off = off + 1
 	local len_data = pack_varint32(#str)
 	buf[off] = len_data
 	off = off + 1
 	buf[off] = str
 	return off, len + #len_data + #str
-end,
-}
+end
 
 --
 -- packed repeated fields
@@ -244,7 +230,7 @@ local function pack_fields(buf, off, len, msg, fields)
 	return off, len
 end
 
-function pack.group(buf, off, len, msg, fields, end_tag)
+function group(buf, off, len, msg, fields, end_tag)
 	local total = 0
 	local len
 	-- Pack group fields.
@@ -253,99 +239,9 @@ function pack.group(buf, off, len, msg, fields, end_tag)
 	off, len = append(buf, off, len, end_tag)
 end
 
-function pack.message(buf, off, len, msg, fields)
+function message(buf, off, len, msg, fields)
 	-- Pack message fields.
 	return pack_fields(buf, off, len, msg, fields)
-end
-
-----------------------------------------------------------------------------------
---
---  Unpack code.
---
-----------------------------------------------------------------------------------
-
-local function unpack_varint64(data, off)
-	local b = data:byte(off)
-	local num = band(b, 0x7F)
-	local boff = 7
-	while b >= 128 do
-		off = off + 1
-		b = data:byte(off)
-		num = bor(num, lshift(band(b, 0x7F), boff))
-		boff = boff + 7
-	end
-	return num, off
-end
-
-local function unpack_varint32(data, off)
-	local b = data:byte(off)
-	local num = band(b, 0x7F)
-	local boff = 7
-	while b >= 128 do
-		off = off + 1
-		b = data:byte(off)
-		num = bor(num, lshift(band(b, 0x7F), boff))
-		boff = boff + 7
-	end
-	return num, off
-end
-
-unpack = {
-varint64 = unpack_varint64,
-varint32 = unpack_varint32,
-
-svarint64 = function(data, off)
-	local num
-	num, off = unpack_varint64(data, off)
-	return unzigzag64(num), off
-end,
-
-svarint32 = function(data, off)
-	local num
-	num, off = unpack_varint32(data, off)
-	return unzigzag32(num), off
-end,
-
-fixed64 = function(data, off)
-	return unpack('<I8', data, off), off + 8
-end,
-
-sfixed64 = function(data, off)
-	return unpack('<i8', data, off), off + 8
-end,
-
-double = function(data, off)
-	return unpack('<d', data, off), off + 8
-end,
-
-fixed32 = function(data, off)
-	return unpack('<I4', data, off), off + 4
-end,
-
-sfixed32 = function(data, off)
-	return unpack('<i4', data, off), off + 4
-end,
-
-float = function(data, off)
-	return unpack('<f', data, off), off + 4
-end,
-
-string = function(data, off)
-	local len
-	-- decode string length.
-	len, off = unpack_varint32(data, off)
-	-- decode string data.
-	local end_off = off + len
-	return data:sub(off, end_off - 1), end_off
-end,
-}
-
-function decode_field_tag(data, off)
-	local tag
-	tag, off = unpack_varint32(data, off)
-	local field_num = rshift(tag, 3)
-	local wire_type = band(tag, 7)
-	return field_num, wire_type, off
 end
 
 --
@@ -367,7 +263,6 @@ sint64 = "svarint64",
 bytes  = "string",
 }
 for k,v in pairs(map_types) do
-	pack[k] = pack[v]
-	unpack[k] = unpack[v]
+	_M[k] = _M[v]
 end
 

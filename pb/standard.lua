@@ -23,10 +23,9 @@ local tostring = tostring
 
 local mod_path = ...
 
-local data = require(mod_path .. ".data")
-local encode_field_tag = data.encode_field_tag
-local fpack = data.pack
-local funpack = data.unpack
+local fpack = require(mod_path .. ".pack")
+local encode_field_tag = fpack.encode_field_tag
+local funpack = require(mod_path .. ".unpack")
 local pack_msg = fpack.message
 local unpack_msg = funpack.message
 

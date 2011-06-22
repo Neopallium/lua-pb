@@ -3,12 +3,12 @@
 package	= 'lua-pb'
 version	= 'scm-0'
 source	= {
-	url	= '__project_git_url__'
+	url	= 'git://github.com/Neopallium/lua-pb.git'
 }
 description	= {
 	summary	= "Lua Protocol Buffers",
 	detailed	= '',
-	homepage	= '__project_homepage__',
+	homepage	= 'https://github.com/Neopallium/lua-pb',
 	license	= 'MIT',
 	maintainer = "Robert G. Jakabosky",
 }
@@ -28,6 +28,9 @@ build	= {
 			['pb.proto.grammar'] = "pb/proto/grammar.lua",
 			['pb.proto.parser'] = "pb/proto/parser.lua",
 			['pb.standard'] = "pb/standard.lua",
+			['pb.standard.pack'] = "pb/standard/pack.lua",
+			['pb.standard.unpack'] = "pb/standard/unpack.lua",
+			['pb.standard.buffer'] = "pb/standard/buffer.lua",
 		}
 	}
 }
