@@ -3,6 +3,8 @@ package benchmarks;
 
 option optimize_for = SPEED;
 
+import "media.proto";
+
 message SpeedMessage1 {
 	extensions 1000 to 2000;
 	extensions 3000 to 4000,200;
@@ -17,7 +19,7 @@ message SpeedMessage1 {
   optional int32 field6 = 6 [default=0];
   optional int64 field22 = 22;
   optional string field4 = 4;
-  repeated fixed64 field5 = 5;
+  repeated fixed64 field5 = 5[packed=true];
   optional bool field59 = 59 [default=false];
   optional string field7 = 7;
   optional int32 field16 = 16;

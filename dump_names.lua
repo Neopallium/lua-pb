@@ -1,8 +1,8 @@
 
 local lp = require"lpeg"
 local scanner = require"pb.proto.scanner"
+local util = require"pb.proto.util"
 local grammar = require"pb.proto.grammar"
-local parser = require"pb.proto.parser"
 
 -- read .proto file.
 local f = assert(io.open(arg[1]))
@@ -12,15 +12,15 @@ f:close()
 local captures = {
 Package = function(name, ...) print("Package:", name, ...); return name; end,
 Message = function(name, ...) print("Message:", name, ...); return name; end,
-Name = grammar.C,
-ID = grammar.C,
+Name = util.C,
+ID = util.C,
 }
 
 local rules = {
 --[1] = lp.V'Message',
 }
 
-local patt = lp.P(parser.apply(rules, captures))
+local patt = lp.P(grammar.apply(rules, captures))
 
 --patt = (patt + scanner.ANY)^0
 -- parse tokens.

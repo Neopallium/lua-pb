@@ -1,5 +1,5 @@
 
-local ast = require"pb.proto.ast"
+local parser = require"pb.proto.parser"
 
 local utils = require"utils"
 
@@ -9,9 +9,9 @@ local contents = f:read("*a")
 f:close()
 
 -- parse .proto to AST
-local ast = ast.parse(contents)
+local parser = parser.parse(contents)
 
-print(utils.dump(ast))
+print(utils.dump(parser))
 
 print("Valid .proto file")
 

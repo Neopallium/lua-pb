@@ -18,159 +18,264 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 -- THE SOFTWARE.
 
-local print = print
-local upper = string.upper
-local sfind = string.find
+local lower = string.lower
+local tremove = table.remove
+local tsort = table.sort
+local assert = assert
 
-local pack = string.match(...,"[a-zA-Z0-9.]*[.]") or ''
+local pack = string.match(...,"[-_a-zA-Z0-9.]*[.]") or ''
 
 local lp = require"lpeg"
-local grammar = require(pack .. 'grammar')
-local scanner = require(pack .. 'scanner')
-local error = scanner.error
-local P=lp.P
-local S=lp.S
-local V=lp.V
-local R=lp.R
-local B=lp.B
+local scanner = require(pack .. "scanner")
+local grammar = require(pack .. "grammar")
 
-local C=lp.C
-local Cf=lp.Cf
-local Cc=lp.Cc
+-- field tag sort function.
+local function sort_tags(f1, f2)
+	return f1.tag < f2.tag
+end
+
+-- create sub-table if it doesn't exists
+local function create(tab, sub_tab)
+	if not tab[sub_tab] then
+		tab[sub_tab] = {}
+	end
+	return tab[sub_tab]
+end
+
+local Cap = function(...) return ... end
+local function node_type(node)
+	return node['.type']
+end
+local function make_node(node_type, node)
+	node = node or {}
+	node['.type'] = node_type
+	return node
+end
+local function CapNode(ntype, ...)
+	local fields = {...}
+	local fcount = #fields
+	return function(...)
+		local node = make_node(ntype, {...})
+		local idx = 0
+		-- process named fields
+		for i=1,fcount do
+			local name = fields[i]
+			local val = tremove(node, 1)
+			node[name] = val
+		end
+		return node
+	end
+end
+
+local captures = {
+[1] = function(...)
+	local types = {}
+	local proto = {
+		types = types,
+		...
+	}
+	local tcount = 0
+	for i=1,#proto do
+		local sub = proto[i]
+		local sub_type = node_type(sub)
+		proto[i] = nil
+		if sub_type == 'option' then
+			create(proto, 'options')
+			proto.options[sub.name] = sub.value
+		elseif sub_type == 'package' then
+			proto.package = sub.name
+		elseif sub_type == 'import' then
+			local imports = create(proto, 'imports')
+			imports[#imports + 1] = sub
+		elseif sub_type == 'service' then
+			create(proto, 'services')
+			proto.services[sub.name] = sub
+		else
+			-- map 'name' -> type
+			types[sub.name] = sub
+			-- add types to array
+			tcount = tcount + 1
+			types[tcount] = sub
+		end
+	end
+	return proto
+end,
+Package = CapNode("package",
+	"name"
+),
+Import = CapNode("import",
+	"file"
+),
+Option = CapNode("option",
+	"name", "value"
+),
+Message = function(name, body)
+	local node = make_node('message', body)
+	node.name = name
+	return node
+end,
+MessageBody = function(...)
+	local fields = {}
+	local body = {
+		fields = fields,
+		...
+	}
+	local types
+	local tcount = 0
+	local fcount = 0
+	-- process sub-nodes
+	for i=1,#body do
+		-- remove sub-node
+		local sub = body[i]
+		local sub_type = node_type(sub)
+		body[i] = nil
+		if sub_type == 'field' then
+			-- map 'name' -> field
+			fields[sub.name] = sub
+			-- map order -> field
+			fcount = fcount + 1
+			fields[fcount] = sub
+		elseif sub_type == 'extensions' then
+			local list = create(body, 'extensions')
+			local idx = #list
+			-- append extensions
+			for i=1,#sub do
+				local range = sub[i]
+				idx = idx + 1
+				list[idx] = range
+			end
+		else
+			if tcount == 0 then
+				types = create(body, 'types')
+			end
+			-- map 'name' -> sub-type
+			types[sub.name] = sub
+			-- add sub-types to array
+			tcount = tcount + 1
+			types[tcount] = sub
+		end
+	end
+	-- sort fields by tag
+	tsort(fields, sort_tags)
+	return body
+end,
+Group = function(rule, name, tag, body)
+	local group_ftype = 'group_' .. name
+	local group = make_node('group', body)
+	group.name = group_ftype
+	group.tag = tag
+	local field = make_node('field',{
+		rule = rule,
+		ftype = group_ftype,
+		name = name,
+		tag = tag,
+		is_group = true,
+	})
+	return group, field
+end,
+Enum = function(name, ...)
+	local node = make_node('enum', {...})
+	local options
+	local values = {}
+	node.name = name
+	node.values = values
+	for i=1,#node do
+		-- remove next sub-node.
+		local sub = node[i]
+		local sub_type = node_type(sub)
+		node[i] = nil
+		-- option/enum_field
+		if sub_type == 'option' then
+			if not options then
+				options = {} -- Enum has options
+			end
+			options[sub.name] = sub.value
+		else
+			-- map 'name' -> value
+			values[sub[1]] = sub[2]
+			-- map value -> 'name'
+			values[sub[2]] = sub[1]
+		end
+	end
+	node.options = options
+	return node
+end,
+EnumField = function(...)
+	return {...}
+end,
+Field = function(rule, ftype, name, tag, options)
+	local field = make_node('field', {
+		rule = rule,
+		ftype = ftype,
+		name = name,
+		tag = tag,
+		options = options,
+	})
+	-- process common options.
+	if options then
+		field.default = options.default
+		field.is_deprecated = options.deprecated
+		field.is_packed = options.packed
+		if field.is_packed then
+			assert(field.rule == 'repeated', "Only 'repeated' fields can be packed.")
+		end
+	end
+	return field
+end,
+FieldOptions = function(...)
+	local options = {...}
+	for i=1,#options,2 do
+		-- remove next option from list
+		local name = options[i]
+		options[i] = nil
+		local value = options[i+1]
+		options[i+1] = nil
+		-- set option.
+		options[name] = value
+	end
+	return options
+end,
+Extensions = CapNode("extensions"
+),
+Extension = function(first, last)
+	if not last then
+		-- single value.
+		return first
+	end
+	-- range
+	return {first, last}
+end,
+Service = CapNode("service",
+	"name"
+),
+rpc = CapNode("rpc",
+	"name", "request", "response"
+),
+
+Name = Cap,
+GroupName = Cap,
+ID = Cap,
+Constant = Cap,
+IntLit = tonumber,
+SNumLit = tonumber,
+StrLit = function(quoted)
+	assert(quoted:sub(1,1) == '"')
+	return quoted:sub(2,-2)
+end,
+BoolLit = function(bool)
+	bool = lower(bool)
+	return (bool == 'true')
+end,
+FieldRule = Cap,
+Type = Cap,
+}
+
+local ast_patt = lp.P(grammar.apply({}, captures))
+	* (scanner.EOF + scanner.error"invalid character")
 
 module(...)
 
--- Copyright (c) 2007 Humberto Saraiva Nazareno dos Anjos.
--- function 'rfind' copied from "leg.parser" in "Leg - LPeg-powered Lua 5.1 grammar"
--- Searches for the last substring in s which matches pattern
-local function rfind(s, pattern, init, finish)
-  init = init or #s
-  finish = finish or 1
-  
-  for i = init, finish, -1 do
-    local lfind, rfind = sfind(s, pattern, i)
-    
-    if lfind and rfind then
-      return lfind, rfind
-    end
-  end
-  
-  return nil
-end
-
-local function eV(val)
-	return (V(val) + error("expected '" .. val .. "'"))
-end
-local function eP(str)
-	return (P(str) + error("expected '" .. str .. "'"))
-end
-
--------------------------------------------------------------------------------
-------------------------- Protocol Buffers grammer rules
--------------------------------------------------------------------------------
-local S=V'IGNORED'
-local listOf = grammar.listOf
-local E=S* eV';'
-
-rules = {
--- initial rule
-[1] = 'Proto';
-
-IGNORED = scanner.IGNORED, -- seen as S below
-EPSILON = P(true),
-EOF = scanner.EOF,
-BOF = scanner.BOF,
-ID = scanner.IDENTIFIER,
-
-IntLit = scanner.INTEGER,
-SIntLit = scanner.SINTEGER,
-NumLit = scanner.NUMERIC,
-SNumLit = scanner.SNUMERIC,
-StrLit = scanner.STRING,
-
--- identifiers
-Ident = scanner.IDENTIFIER,
-Name = V'Ident' * ( V'.' * V'Ident')^0,
-GroupName = R'AZ' * (V'Ident')^0,
-UserType = (V'.')^-1 * V'Name',
-
--- Top-level
-Proto = (S* (V'Message' + V'Extend' + V'Enum' + V'Import' + V'Package' + V'Option' +
-	V'Service' + V';'))^0 *S,
-
-Import = V'IMPORT' *S* eV'StrLit' *E,
-Package = V'PACKAGE' *S* eV'Name' *E,
-
-Option = V'OPTION' *S* V'OptionBody' *E,
-OptionBody = eV'Name' *S* eV'=' *S* eV'Constant',
-
-Extend = V'EXTEND' *S* eV'UserType' *S* eV'{' * (S* (V'Group' + V'Field' + V';'))^0 *S* eV'}',
-
-Enum = V'ENUM' *S* V'ID' *S* eV'{' * (S* (V'Option' + V'EnumField' + V';'))^0 *S* eV'}',
-EnumField = V'ID' *S* eV'=' *S* eV'IntLit' *E,
-
-Service = V'SERVICE' *S* eV'ID' *S* eV'{' * (S* (V'Option' + V'rpc' + V';'))^0 *S* eV'}',
-rpc = V'RPC' *S* eV'ID' *S* eV'(' *S* V'UserType' *S* V')' *S*
-	eV'RETURNS' *S* eV'(' *S* eV'UserType' *S* eV')' *E,
-
-Group = V'FieldRule' *S* V'GROUP' *S* eV'GroupName' *S* eV'=' *S* eV'IntLit' *S* V'MessageBody',
-
-Message = V'MESSAGE' *S* eV'ID' *S* V'MessageBody',
-
-MessageBody = eV'{' * (S* (V'Group' + V'Field' + V'Enum' + V'Message' + V'Extend' + V'Extensions'
-	+ V'Option' + V';'))^0 *S* eV'}',
-
-Field = V'FieldRule' *S* eV'Type' *S* eV'ID' *S* eV'=' *S* eV'IntLit' *S*
-	( V'[' *S* V'FieldOptions' *S* eV']')^-1 *E,
-FieldOptions = listOf(V'OptionBody', S* V',' *S),
-FieldRule = (V'REQUIRED' + V'OPTIONAL' + V'REPEATED'),
-
-Extensions = V'EXTENSIONS' *S* V'ExtensionList' *E,
-ExtensionList = listOf(V'Extension', S* V',' *S),
-Extension =  eV'IntLit' *S* (V'TO' *S*
-	(V'IntLit' + V'MAX' + error("expected integer or 'max'")) )^-1,
-
-Type = (V'DOUBLE' + V'FLOAT' + 
-V'INT32' + V'INT64' +
-V'UINT32' + V'UINT64' +
-V'SINT32' + V'SINT64' +
-V'FIXED32' + V'FIXED64' +
-V'SFIXED32' + V'SFIXED64' +
-V'BOOL' + 
-V'STRING' + V'BYTES' + V'UserType'),
-
-BoolLit = (V'TRUE' + V'FALSE'),
-Constant = (V'BoolLit' + V'ID' + V'SNumLit' + V'StrLit'),
-
-}
-
--- add keywords and symbols to grammar
-grammar.complete(rules, scanner.keywords)
-grammar.complete(rules, scanner.symbols)
-
--- Copyright (c) 2007 Humberto Saraiva Nazareno dos Anjos.
--- function 'check' copied from "leg.parser" in "Leg - LPeg-powered Lua 5.1 grammar"
-function check(input)
-  local builder = P(rules)
-  local result = builder:match(input)
-  
-  if result ~= #input + 1 then -- failure, build the error message
-    local init, _ = rfind(input, '\n*', result - 1) 
-    local _, finish = sfind(input, '\n*', result + 1)
-    
-    init = init or 0
-    finish = finish or #input
-    
-    local line = scanner.lines(input:sub(1, result))
-    local vicinity = input:sub(init + 1, finish)
-    
-    return false, 'Syntax error at line '..line..', near "'..vicinity..'"'
-  end
-  
-  return true
-end
-
-function apply(extraRules, captures)
-	return grammar.apply(rules, extraRules, captures)
+function parse(contents)
+	return ast_patt:match(contents)
 end
 

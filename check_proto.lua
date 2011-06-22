@@ -1,6 +1,6 @@
 
 local lp = require"lpeg"
-local parser = require"pb.proto.parser"
+local grammar = require"pb.proto.grammar"
 
 -- read .proto file.
 local f = assert(io.open(arg[1]))
@@ -8,7 +8,7 @@ local contents = f:read("*a")
 f:close()
 
 -- parse tokens.
-assert(parser.check(contents))
+assert(grammar.check(contents))
 
 print("Valid .proto file")
 
