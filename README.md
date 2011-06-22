@@ -7,6 +7,7 @@ Modules
 -------
 
 Frontend `.proto` definition file parser:
+
 * pb/proto/scanner.lua -- LPeg lexer for `.proto` files.
 * pb/proto/util.lua    -- some utility functions.
 * pb/proto/grammar.lua -- LPeg grammar for `.proto` files.
@@ -16,6 +17,7 @@ There can be multiple Backend message definition compilers.  An optimized backen
 is planned.
 
 Standard backend compiler
+
 * pb/standard.lua         -- main compiler code.
 * pb/standard/data.lua    -- pack/unpack code (Uses modules luabitops & struct)
 * pb/standard/buffer.lua  -- encoding buffer
