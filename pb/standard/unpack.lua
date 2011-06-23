@@ -321,7 +321,7 @@ local function unpack_field(data, off, len, field, mdata)
 	return val, off
 end
 
-local function unpack_fields(data, off, len, msg, fields, is_group)
+local function unpack_fields(data, off, len, msg, tags, is_group)
 	local tag, wire_type, field, val
 	local mdata = msg['.data']
 	local unknowns
@@ -336,10 +336,10 @@ local function unpack_fields(data, off, len, msg, fields, is_group)
 			end
 			return msg, off
 		end
-		field = fields[tag]
+		field = tags[tag]
 		if field then
 			if field.wire_type ~= wire_type then
-				error(sformat("Malformed Message, wire_type of field doesn't match (%d ~= %d!",
+				error(sformat("Malformed Message, wire_type of field doesn't match (%d ~= %d)!",
 					field.wire_type, wire_type))
 			end
 			val, off = unpack_field(data, off, len, field, mdata)
@@ -369,19 +369,19 @@ local function unpack_fields(data, off, len, msg, fields, is_group)
 	return msg, off
 end
 
-function group(data, off, len, msg, fields, end_tag)
+function group(data, off, len, msg, tags, end_tag)
 	-- Unpack group fields.
-	msg, off = unpack_fields(data, off, len, msg, fields, true)
+	msg, off = unpack_fields(data, off, len, msg, tags, true)
 	-- validate 'End group' tag
-	if data:sub(off - #end_tag, off) ~= end_tag then
+	if data:sub(off - #end_tag, off - 1) ~= end_tag then
 		error("Malformed Group, invalid 'End group' tag: " .. tostring(msg))
 	end
 	return msg, off
 end
 
-function message(data, off, len, msg, fields)
+function message(data, off, len, msg, tags)
 	-- Unpack message fields.
-	return unpack_fields(data, off, len, msg, fields, false)
+	return unpack_fields(data, off, len, msg, tags, false)
 end
 
 --
