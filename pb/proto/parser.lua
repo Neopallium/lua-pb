@@ -123,6 +123,12 @@ MessageBody = function(...)
 	local types
 	local tcount = 0
 	local fcount = 0
+	-- check for empty message.
+	if #body == 1 then
+		if type(body[1]) == 'string' then
+			body[1] = nil
+		end
+	end
 	-- process sub-nodes
 	for i=1,#body do
 		-- remove sub-node
