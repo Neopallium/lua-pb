@@ -56,3 +56,5 @@ TODO
 Installing
 ----------
 
+	$ sudo luarocks install "https://raw.github.com/Neopallium/lua-pb/master/lua-pb-scm-0.rockspec"
+
