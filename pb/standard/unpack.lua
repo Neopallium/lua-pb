@@ -260,7 +260,7 @@ local function unpack_field(data, off, len, field, mdata)
 	local val
 
 	if field.is_repeated then
-		local arr = data[name]
+		local arr = mdata[name]
 		-- create array for repeated fields.
 		if not arr then
 			arr = {}
