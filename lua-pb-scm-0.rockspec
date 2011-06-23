@@ -31,6 +31,7 @@ build	= {
 			['pb.standard.pack'] = "pb/standard/pack.lua",
 			['pb.standard.unpack'] = "pb/standard/unpack.lua",
 			['pb.standard.buffer'] = "pb/standard/buffer.lua",
+			['pb.standard.unknown'] = "pb/standard/unknown.lua",
 		}
 	}
 }
