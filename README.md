@@ -3,6 +3,8 @@ lua-pb
 
 Lua Protocol Buffers.
 
+Supports dynamic loading of Protocol Buffer message definition files `.proto`
+
 Modules
 -------
 
@@ -19,21 +21,23 @@ is planned.
 Standard backend compiler
 
 * pb/standard.lua         -- main compiler code.
-* pb/standard/data.lua    -- pack/unpack code (Uses modules luabitops & struct)
+* pb/standard/pack.lua    -- pack code (Uses modules luabitops & struct)
+* pb/standard/unpack.lua  -- unpack code (Uses modules luabitops & struct)
 * pb/standard/buffer.lua  -- encoding buffer
+* pb/standard/unknown.lua -- object for hold unknown fields.
 
 Finished
 --------
 * .proto definition parser
 * Message encoder
+* Message decoder
+* Raw message decoding.
 
 TODO
 ----
 
-* decoder
 * resolving nested types (OuterMessage.InnerMessage)
 * extended messages
-* unkown fields.
 * LuaJIT optimized backend compiler.
 * custom options:
 
