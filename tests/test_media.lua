@@ -6,7 +6,7 @@ local decode_msg = pb.decode
 local utils = require"utils"
 
 -- load .proto file.
-local media = pb.require"media"
+local media = pb.require"protos.media"
 
 --print(utils.dump(media))
 

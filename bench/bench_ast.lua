@@ -1,6 +1,6 @@
 
 local parser = require"pb.proto.parser"
-local bench = require"bench"
+local bench = require"bench.bench"
 
 -- read .proto file.
 local f = assert(io.open(arg[1]))
