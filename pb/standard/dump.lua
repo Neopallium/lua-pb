@@ -26,6 +26,7 @@ local tostring = tostring
 local setmetatable = setmetatable
 local type = type
 local sformat = string.format
+local char = string.char
 
 local function append(buf, off, data)
 	off = off + 1
@@ -35,6 +36,29 @@ end
 
 local function indent(buf, off, depth)
 	return append(buf, off, ('  '):rep(depth))
+end
+
+--
+-- Safe strings
+--
+local escapes = {}
+for i=0,255 do
+	escapes[char(i)] = sformat('\\%03o', i)
+end
+escapes['"'] = '\\"'
+escapes["'"] = "\\'"
+escapes["\\"] = "\\\\"
+escapes["\r"] = "\\r"
+escapes["\n"] = "\\n"
+escapes["\t"] = "\\t"
+-- safe chars
+local safe = [=[`~!@#$%^&*()_-+={}[]|:;<>,.?/]=]
+for i=1,#safe do
+	local c = safe:sub(i,i)
+	escapes[c] = c
+end
+local function safe_string(data)
+	return data:gsub([[([^%w ])]], escapes)
 end
 
 module(...)
@@ -82,11 +106,14 @@ function double(buf, off, val)
 end
 -- Length-delimited
 function string(buf, off, val)
-	return append(buf, off, sformat("%q", val))
+	off = append(buf, off, '"')
+	off = append(buf, off, safe_string(val))
+	return append(buf, off, '"')
 end
 function bytes(buf, off, val)
-	-- TODO: convert to hex: FF FF FF FF....
-	return append(buf, off, sformat("%q", val))
+	off = append(buf, off, '"')
+	off = append(buf, off, safe_string(val))
+	return append(buf, off, '"')
 end
 -- 32-bit fixed
 function fixed32(buf, off, val)
@@ -96,10 +123,41 @@ function sfixed32(buf, off, val)
 	return append(buf, off, sformat("%d", val))
 end
 function float(buf, off, val)
-	return append(buf, off, tostring(val))
+	return append(buf, off, sformat("%.8g", val))
 end
 
 local dump_fields
+local dump_unknown_fields
+
+local wire_types = {
+[0] = function(buf, off, val, depth)
+	return append(buf, off, sformat(": %u", val))
+end,
+[1] = function(buf, off, val, depth)
+	return append(buf, off, sformat(": 0x%016x", val))
+end,
+[2] = function(buf, off, val, depth)
+	if type(val) == 'table' then
+		off = append(buf, off, " {\n")
+		off = dump_unknown_fields(buf, off, val, depth + 1)
+		off = indent(buf, off, depth)
+		return append(buf, off, "}")
+	end
+	off = append(buf, off, ': "')
+	off = append(buf, off, safe_string(val))
+	return append(buf, off, '"')
+end,
+[3] = function(buf, off, val, depth)
+	off = append(buf, off, " {\n")
+	off = dump_unknown_fields(buf, off, val, depth + 1)
+	off = indent(buf, off, depth)
+	return append(buf, off, "}")
+end,
+[4] = nil, -- End group
+[5] = function(buf, off, val, depth)
+	return append(buf, off, sformat(": 0x%08x", val))
+end,
+}
 
 local function dump_field(buf, off, field, val, depth)
 	-- indent
@@ -136,6 +194,25 @@ local function dump_repeated(buf, off, field, arr, depth)
 	return off
 end
 
+function dump_unknown_fields(buf, off, unknowns, depth)
+	for i=1,#unknowns do
+		local field = unknowns[i]
+		-- indent
+		off = indent(buf, off, depth)
+		-- dump field name
+		off = append(buf, off, tostring(field.tag))
+		-- dump field
+		local dump = wire_types[field.wire]
+		if not dump then
+			error("Invalid unknown field wire_type=" .. tostring(field.wire))
+		end
+		off = dump(buf, off, field.value, depth)
+		-- newline
+		off = append(buf, off, "\n")
+	end
+	return off
+end
+
 local function dump_fields(buf, off, msg, fields, depth)
 	local data = msg['.data']
 	for i=1,#fields do
@@ -150,6 +227,12 @@ local function dump_fields(buf, off, msg, fields, depth)
 			end
 		end
 	end
+	-- dump unknown fields
+	local unknowns = data.unknown_fields
+	if unknowns then
+		return dump_unknown_fields(buf, off, unknowns, depth)
+	end
+
 	return off
 end
 
