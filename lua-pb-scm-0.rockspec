@@ -22,16 +22,17 @@ build	= {
 	type		= 'none',
 	install = {
 		lua = {
-			['pb'] = "pb.lua",
-			['pb.proto.scanner'] = "pb/proto/scanner.lua",
-			['pb.proto.util'] = "pb/proto/util.lua",
-			['pb.proto.grammar'] = "pb/proto/grammar.lua",
-			['pb.proto.parser'] = "pb/proto/parser.lua",
-			['pb.standard'] = "pb/standard.lua",
-			['pb.standard.pack'] = "pb/standard/pack.lua",
-			['pb.standard.unpack'] = "pb/standard/unpack.lua",
-			['pb.standard.buffer'] = "pb/standard/buffer.lua",
+			['pb']                  = "pb.lua",
+			['pb.proto.scanner']    = "pb/proto/scanner.lua",
+			['pb.proto.util']       = "pb/proto/util.lua",
+			['pb.proto.grammar']    = "pb/proto/grammar.lua",
+			['pb.proto.parser']     = "pb/proto/parser.lua",
+			['pb.standard']         = "pb/standard.lua",
+			['pb.standard.pack']    = "pb/standard/pack.lua",
+			['pb.standard.unpack']  = "pb/standard/unpack.lua",
+			['pb.standard.buffer']  = "pb/standard/buffer.lua",
 			['pb.standard.unknown'] = "pb/standard/unknown.lua",
+			['pb.standard.dump']    = "pb/standard/dump.lua",
 		}
 	}
 }
