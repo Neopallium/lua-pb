@@ -175,3 +175,12 @@ function decode(msg, data)
 	return decode_msg(msg, data)
 end
 
+function dump(msg)
+	local dump_msg = msg['.dump']
+	return dump_msg(msg)
+end
+
+function _M.print(msg)
+	print(dump(msg))
+end
+

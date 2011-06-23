@@ -29,6 +29,8 @@ local funpack = require(mod_path .. ".unpack")
 local pack_msg = fpack.message
 local unpack_msg = funpack.message
 
+local fdump = require(mod_path .. ".dump")
+
 local buffer = require(mod_path .. ".buffer")
 local new_buffer = buffer.new
 
@@ -67,6 +69,16 @@ end
 
 local function decode_msg(msg, data, off, fields)
 	return unpack_msg(data, off, #data, msg, fields)
+end
+
+local function dump_msg(msg, fields, depth)
+	local buf = new_buffer()
+
+	local off = fdump.message(buf, 0, msg, fields, depth or 0)
+
+	local data = buf:pack(1, off, true)
+	buf:release()
+	return data
 end
 
 local define_types
@@ -108,12 +120,14 @@ local function compile_fields(node, fields)
 			-- get pack/unpack functions
 			field.pack = user_type['.pack']
 			field.unpack = user_type['.unpack']
+			field.dump = user_type['.dump']
 			-- get new function
 			field.new = user_type['.new']
 			if field.is_group then
 				wire_type = wire_types.group_start
 				field.end_tag = encode_field_tag(tag, wire_types.group_end)
 			elseif user_type.is_enum then
+				field.is_enum = true
 				wire_type = wire_types.enum
 				if field.is_packed then
 					-- packed enum
@@ -123,13 +137,16 @@ local function compile_fields(node, fields)
 			else
 				wire_type = wire_types.message
 				field.has_length = true
+				field.is_message = true
 			end
 		elseif field.is_packed then
 			-- packed basic type
+			field.is_basic = true
 			field.pack = fpack.packed[ftype]
 			field.unpack = funpack.packed[ftype]
 		else
 			-- basic type
+			field.is_basic = true
 			field.pack = fpack[ftype]
 			field.unpack = funpack[ftype]
 		end
@@ -244,6 +261,7 @@ local function define_message(parent, name, ast, is_group)
 	if is_group then
 		local pack = fpack.group
 		local unpack = funpack.group
+		local dump = fdump.group
 		-- encode group end tag.
 		local end_tag = encode_field_tag(ast.tag, wire_types.group_end)
 		-- group pack/unpack
@@ -256,18 +274,25 @@ local function define_message(parent, name, ast, is_group)
 			end
 			return unpack(data, off, len, msg, fields, end_tag)
 		end
+		node['.dump'] = function(buf, off, msg, depth)
+			return dump(buf, off, msg, fields, depth)
+		end
 	else
 		local pack = fpack.message
 		local unpack = funpack.message
-		-- message pack/unpack
-			-- top-level message pack/unpack functions
+		local dump = fdump.message
+		-- message pack/unpack/dump
+			-- top-level message pack/unpack/dump functions
 		methods['.encode'] = function(msg)
 			return encode_msg(msg, fields)
 		end
 		methods['.decode'] = function(msg, data, off)
 			return decode_msg(msg, data, off or 1, fields)
 		end
-			-- field pack/unpack functions
+		methods['.dump'] = function(msg, depth)
+			return dump_msg(msg, fields, depth)
+		end
+			-- field pack/unpack/dump functions
 		node['.pack'] = function(buf, off, len, msg)
 			return pack(buf, off, len, msg, fields)
 		end
@@ -276,6 +301,9 @@ local function define_message(parent, name, ast, is_group)
 				msg = new_msg(mt)
 			end
 			return unpack(data, off, len, msg, fields)
+		end
+		node['.dump'] = function(buf, off, msg, depth)
+			return dump(buf, off, msg, fields, depth)
 		end
 	end
 
@@ -294,7 +322,8 @@ local function define_enum(parent, name, node)
 
 	local pack = fpack.enum
 	local unpack = funpack.enum
-	-- field pack/unpack functions
+	local dump = fdump.enum
+	-- field pack/unpack/dump functions
 	node['.pack'] = function(buf, off, len, enum)
 		return pack(buf, off, len, values[enum])
 	end
@@ -302,6 +331,9 @@ local function define_enum(parent, name, node)
 		local enum
 		enum, off = unpack(data, off, len)
 		return values[enum], off
+	end
+	node['.dump'] = function(buf, off, enum, depth)
+		return dump(buf, off, enum, depth)
 	end
 
 	-- add to parent.

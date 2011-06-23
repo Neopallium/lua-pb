@@ -46,6 +46,8 @@ local data = {
 
 local msg = MediaContent(data)
 
+pb.print(msg)
+
 local bin = encode_msg(msg)
 
 print("--- encoded message: bytes", #bin)
@@ -58,6 +60,7 @@ print("--- decode message")
 local msg1, off = decode_msg(MediaContent(), bin)
 
 print(utils.dump(msg1))
+pb.print(msg1)
 
 print("Valid .proto file")
 
