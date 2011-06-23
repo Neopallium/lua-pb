@@ -54,5 +54,10 @@ local file = assert(io.open(arg[1] or 'media.bin', 'w'))
 assert(file:write(bin))
 assert(file:close())
 
+print("--- decode message")
+local msg1, off = decode_msg(MediaContent(), bin)
+
+print(utils.dump(msg1))
+
 print("Valid .proto file")
 

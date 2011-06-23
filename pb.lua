@@ -105,6 +105,29 @@ function set_default_backend(name)
 	return old
 end
 
+function load_proto(text, backend, require)
+	local b = get_backend(backend)
+
+	-- parse .proto into AST tree
+	local ast = parser.parse(text)
+
+	-- process imports
+	local imports = ast.imports
+	if imports then
+		require = require or _M.require
+		for i=1,#imports do
+			local import = imports[i]
+			local name = proto_file_to_name(import.file)
+			import.name = name
+			-- recurively load imports.
+			import.proto = require(name, backend)
+		end
+	end
+
+	-- compile AST tree into Message definitions
+	return b.compile(ast)
+end
+
 local loading = "loading...."
 function require(name, backend)
 	local b = get_backend(backend)
@@ -122,23 +145,8 @@ function require(name, backend)
 	local text = f:read("*a")
 	f:close()
 
-	-- parse .proto into AST tree
-	local ast = parser.parse(text)
-
-	-- process imports
-	local imports = ast.imports
-	if imports then
-		for i=1,#imports do
-			local import = imports[i]
-			local name = proto_file_to_name(import.file)
-			import.name = name
-			-- recurively load imports.
-			import.proto = require(name, backend)
-		end
-	end
-
 	-- compile AST tree into Message definitions
-	proto = b.compile(ast)
+	proto = load_proto(text, backend, require)
 
 	-- cache compiled .proto
 	b.cache[name] = proto
@@ -150,7 +158,19 @@ function encode(msg)
 	return encode_msg(msg)
 end
 
+-- Raw Message for Raw decoding.
+local raw
+
 function decode(msg, data)
+	if not msg then
+		if not raw then
+			-- need to load Raw message definition.
+			local proto = load_proto("message Raw {}")
+			raw = proto.Raw
+		end
+		-- Raw message decoding
+		msg = raw()
+	end
 	local decode_msg = msg['.decode']
 	return decode_msg(msg, data)
 end

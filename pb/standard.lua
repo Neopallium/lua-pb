@@ -32,6 +32,9 @@ local unpack_msg = funpack.message
 local buffer = require(mod_path .. ".buffer")
 local new_buffer = buffer.new
 
+local unknown = require(mod_path .. ".unknown")
+local new_unknown = unknown.new
+
 local wire_types = {
 -- Varint types
 int32 = 0, int64 = 0,
@@ -60,6 +63,10 @@ local function encode_msg(msg, fields)
 	assert(len == #data,
 		"Invalid packed length.  This shouldn't happen, there is a bug in the message packing code.")
 	return data
+end
+
+local function decode_msg(msg, data, off, fields)
+	return unpack_msg(data, off, #data, msg, fields)
 end
 
 local define_types
@@ -101,15 +108,26 @@ local function compile_fields(node, fields)
 			-- get pack/unpack functions
 			field.pack = user_type['.pack']
 			field.unpack = user_type['.unpack']
+			-- get new function
+			field.new = user_type['.new']
 			if field.is_group then
 				wire_type = wire_types.group_start
 				field.end_tag = encode_field_tag(tag, wire_types.group_end)
 			elseif user_type.is_enum then
 				wire_type = wire_types.enum
+				if field.is_packed then
+					-- packed enum
+					field.pack = fpack.packed.enum
+					field.unpack = funpack.packed.enum
+				end
 			else
 				wire_type = wire_types.message
 				field.has_length = true
 			end
+		elseif field.is_packed then
+			-- packed basic type
+			field.pack = fpack.packed[ftype]
+			field.unpack = funpack.packed[ftype]
 		else
 			-- basic type
 			field.pack = fpack[ftype]
@@ -118,6 +136,7 @@ local function compile_fields(node, fields)
 		-- create field tag_type.
 		local tag_type = encode_field_tag(tag, wire_type)
 		field.tag_type = tag_type
+		field.wire_type = wire_type
 		-- map field 'tag_type' -> field, for faster field decoding
 		tags[tag_type] = field
 	end
@@ -140,6 +159,7 @@ local function compile_types(parent, types)
 end
 
 local function new_msg(mt, data)
+	data = data or {}
 	local fields = mt.fields
 	-- look for sub-messages
 	for i=1,#fields do
@@ -159,7 +179,7 @@ local function new_msg(mt, data)
 			end
 		end
 	end
-	return setmetatable({ ['.data'] = data or {}}, mt)
+	return setmetatable({ ['.data'] = data}, mt)
 end
 
 local function define_message(parent, name, ast, is_group)
@@ -181,6 +201,13 @@ local function define_message(parent, name, ast, is_group)
 		-- check methods
 		local method = methods[name]
 		if method then return method end
+		-- check for unknown field.
+		if name == 'unknown_fields' then
+			-- create Unknown field set object
+			value = new_unknown()
+			data.unknown_fields = value
+			return value
+		end
 		error("Invalid field:" .. name)
 	end,
 	__newindex = function(msg, name, value)
@@ -223,6 +250,9 @@ local function define_message(parent, name, ast, is_group)
 			return pack(buf, off, len, msg, fields, end_tag)
 		end
 		node['.unpack'] = function(data, off, len, msg)
+			if not msg then
+				msg = new_msg(mt)
+			end
 			return unpack(data, off, len, msg, fields, end_tag)
 		end
 	else
@@ -233,14 +263,17 @@ local function define_message(parent, name, ast, is_group)
 		methods['.encode'] = function(msg)
 			return encode_msg(msg, fields)
 		end
-		methods['.decode'] = function(msg, data)
-			return decode_msg(msg, data, fields)
+		methods['.decode'] = function(msg, data, off)
+			return decode_msg(msg, data, off or 1, fields)
 		end
 			-- field pack/unpack functions
 		node['.pack'] = function(buf, off, len, msg)
 			return pack(buf, off, len, msg, fields)
 		end
 		node['.unpack'] = function(data, off, len, msg)
+			if not msg then
+				msg = new_msg(mt)
+			end
 			return unpack(data, off, len, msg, fields)
 		end
 	end

@@ -24,6 +24,13 @@ local print = print
 local error = error
 local tostring = tostring
 local setmetatable = setmetatable
+local sformat = string.format
+local type = type
+
+local mod_path = ...
+
+local unknown = require(mod_path:gsub('(%.[-_%w]*)$','') .. ".unknown")
+local new_unknown = unknown.new
 
 local struct = require"struct"
 local sunpack = struct.unpack
@@ -71,7 +78,7 @@ local function unpack_varint64(data, off)
 		num = bor(num, lshift(band(b, 0x7F), boff))
 		boff = boff + 7
 	end
-	return num, off
+	return num, off + 1
 end
 
 local function unpack_varint32(data, off)
@@ -84,7 +91,7 @@ local function unpack_varint32(data, off)
 		num = bor(num, lshift(band(b, 0x7F), boff))
 		boff = boff + 7
 	end
-	return num, off
+	return num, off + 1
 end
 
 _M.varint64 = unpack_varint64
@@ -103,27 +110,27 @@ function svarint32(data, off)
 end
 
 function fixed64(data, off)
-	return unpack('<I8', data, off), off + 8
+	return sunpack('<I8', data, off)
 end
 
 function sfixed64(data, off)
-	return unpack('<i8', data, off), off + 8
+	return sunpack('<i8', data, off)
 end
 
 function double(data, off)
-	return unpack('<d', data, off), off + 8
+	return sunpack('<d', data, off)
 end
 
 function fixed32(data, off)
-	return unpack('<I4', data, off), off + 4
+	return sunpack('<I4', data, off)
 end
 
 function sfixed32(data, off)
-	return unpack('<i4', data, off), off + 4
+	return sunpack('<i4', data, off)
 end
 
 function float(data, off)
-	return unpack('<f', data, off), off + 4
+	return sunpack('<f', data, off)
 end
 
 function string(data, off)
@@ -135,12 +142,208 @@ function string(data, off)
 	return data:sub(off, end_off - 1), end_off
 end
 
+--
+-- WireType unpack functions for unknown fields.
+--
+local unpack_unknown_field
+local wire_unpack = {
+[0] = function(data, off, len, tag, unknowns)
+	local val
+	-- unpack varint
+	val, off = unpack_varint32(data, off)
+	-- add to list of unknown fields
+	unknowns:addField(tag, 0, val)
+	return val, off
+end,
+[1] = function(data, off, len, tag, unknowns)
+	local val
+	-- unpack 64-bit field
+	val, off = fixed64(data, off)
+	-- add to list of unknown fields
+	unknowns:addField(tag, 1, val)
+	return val, off
+end,
+[2] = function(data, off, len, tag, unknowns)
+	local val
+	-- unpack length-delimited field
+	val, off = string(data, off)
+	-- add to list of unknown fields
+	unknowns:addField(tag, 2, val)
+	return val, off
+end,
+[3] = function(data, off, len, group_tag, unknowns)
+	local tag, wire_type
+	-- add to list of unknown fields
+	local group = unknowns:addGroup(group_tag)
+	-- unpack fields for unknown group.
+	while (off <= len) do
+		-- decode field tag & wire_type
+		tag, wire_type, off = decode_field_tag(data, off)
+		-- check for 'End group' tag
+		if wire_type == 4 then
+			if tag ~= group_tag then
+				error("Malformed Group, invalid 'End group' tag")
+			end
+			return group, off
+		end
+		-- unpack field
+		unpack_unknown_field(data, off, len, tag, wire_type, group)
+	end
+	error("Malformed Group, missing 'End group' tag")
+end,
+[4] = nil,
+[5] = function(data, off, len, tag, unknowns)
+	local val
+	-- unpack 32-bit field
+	val, off = fixed32(data, off)
+	-- add to list of unknown fields
+	unknowns:addField(tag, 5, val)
+	return val, off
+end,
+}
+
+function unpack_unknown_field(data, off, len, tag, wire_type, unknowns)
+	local funpack = wire_unpack[wire_type]
+	if funpack then
+		return funpack(data, off, len, tag, unknowns)
+	end
+	error(sformat("Invalid wire_type=%d, for unknown field=%d, off=%d, len=%d",
+		wire_type, tag, off, len))
+end
+
+--
+-- packed repeated fields
+--
+packed = setmetatable({},{
+__index = function(tab, ftype)
+	local funpack = _M[ftype]
+	rawset(tag, ftype, function(data, off, len, arr)
+		local i=#arr
+		while (off <= len) do
+			i = i + 1
+			arr[i], off = funpack(data, off, len, nil)
+		end
+		return arr, off
+	end)
+end,
+})
+
 function decode_field_tag(data, off)
-	local tag
-	tag, off = unpack_varint32(data, off)
-	local field_num = rshift(tag, 3)
-	local wire_type = band(tag, 7)
-	return field_num, wire_type, off
+	local tag_type
+	tag_type, off = unpack_varint32(data, off)
+	local tag = rshift(tag_type, 3)
+	local wire_type = band(tag_type, 7)
+	return tag, wire_type, off
+end
+
+local unpack_field
+local unpack_fields
+
+local function unpack_length_field(data, off, len, field, val)
+	-- decode field length.
+	local field_len
+	field_len, off  = unpack_varint32(data, off, len)
+
+	-- unpack field
+	return field.unpack(data, off, off + field_len - 1, val)
+end
+
+local function unpack_field(data, off, len, field, mdata)
+	local name = field.name
+	local val
+
+	if field.is_repeated then
+		local arr = data[name]
+		-- create array for repeated fields.
+		if not arr then
+			arr = {}
+			mdata[name] = arr
+		end
+		if field.is_packed then
+			-- unpack length-delimited packed array
+			return unpack_length_field(data, off, len, field, arr)
+		end
+		-- unpack repeated field (just one)
+		if field.has_length then
+			-- unpack length-delimited field.
+			arr[#arr + 1], off = unpack_length_field(data, off, len, field, nil)
+		else
+			arr[#arr + 1], off = field.unpack(data, off, len)
+		end
+		return arr, off
+	elseif field.has_length then
+		-- unpack length-delimited field
+		val, off = unpack_length_field(data, off, len, field, mdata[name])
+		mdata[name] = val
+		return val, off
+	end
+	-- is basic type.
+	val, off = field.unpack(data, off, len)
+	mdata[name] = val
+	return val, off
+end
+
+local function unpack_fields(data, off, len, msg, fields, is_group)
+	local tag, wire_type, field, val
+	local mdata = msg['.data']
+	local unknowns
+
+	while (off <= len) do
+		-- decode field tag & wire_type
+		tag, wire_type, off = decode_field_tag(data, off)
+		-- check for "End group"
+		if wire_type == 4 then
+			if not is_group then
+				error("Malformed Message, found extra 'End group' tag: " .. tostring(msg))
+			end
+			return msg, off
+		end
+		field = fields[tag]
+		if field then
+			if field.wire_type ~= wire_type then
+				error(sformat("Malformed Message, wire_type of field doesn't match (%d ~= %d!",
+					field.wire_type, wire_type))
+			end
+			val, off = unpack_field(data, off, len, field, mdata)
+		else
+			if not unknowns then
+				-- check if Message already has Unknown fields object.
+				unknowns = mdata.unknown_fields
+				if not unknowns then
+					-- need to create an Unknown fields object.
+					unknowns = new_unknown()
+					mdata.unknown_fields = unknowns
+				end
+			end
+			-- unpack Unknown field
+			val, off = unpack_unknown_field(data, off, len, tag, wire_type, unknowns)
+		end
+	end
+	-- Groups should not end here.
+	if is_group then
+		error("Malformed Group, truncated, missing 'End group' tag: " .. tostring(msg))
+	end
+	-- validate message
+	if (off - 1) ~= len then
+		error(sformat("Malformed Message, truncated ((off:%d) - 1) ~= len:%d): %s",
+			off, len, tostring(msg)))
+	end
+	return msg, off
+end
+
+function group(data, off, len, msg, fields, end_tag)
+	-- Unpack group fields.
+	msg, off = unpack_fields(data, off, len, msg, fields, true)
+	-- validate 'End group' tag
+	if data:sub(off - #end_tag, off) ~= end_tag then
+		error("Malformed Group, invalid 'End group' tag: " .. tostring(msg))
+	end
+	return msg, off
+end
+
+function message(data, off, len, msg, fields)
+	-- Unpack message fields.
+	return unpack_fields(data, off, len, msg, fields, false)
 end
 
 --

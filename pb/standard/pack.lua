@@ -133,9 +133,9 @@ end
 --
 -- packed repeated fields
 --
-local packed = setmetatable({},{
+packed = setmetatable({},{
 __index = function(tab, ftype)
-	local fpack = pack[ftype]
+	local fpack = _M[ftype]
 	rawset(tag, ftype, function(buf, off, len, arr)
 		for i=1, #arr do
 			off, len = fpack(buf, off, len, arr[i])
@@ -145,12 +145,11 @@ __index = function(tab, ftype)
 end,
 })
 
-function encode_field_tag(field_num, wire_type)
-	local tag = (field_num * 8) + wire_type
-	return pack_varint32(tag)
+function encode_field_tag(tag, wire_type)
+	local tag_type = (tag * 8) + wire_type
+	return pack_varint32(tag_type)
 end
 
-local pack_field
 local pack_fields
 
 local function pack_length_field(buf, off, len, field, val)
