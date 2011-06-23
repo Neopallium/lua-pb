@@ -25,6 +25,7 @@ Standard backend compiler
 * pb/standard/unpack.lua  -- unpack code (Uses modules luabitops & struct)
 * pb/standard/buffer.lua  -- encoding buffer
 * pb/standard/unknown.lua -- object for hold unknown fields.
+* pb/standard/dump.lua    -- message dumping code.
 
 Finished
 --------
@@ -32,10 +33,12 @@ Finished
 * Message encoder
 * Message decoder
 * Raw message decoding.
+* Dumping messages to text format.
 
 TODO
 ----
 
+* packing unknown fields.
 * resolving nested types (OuterMessage.InnerMessage)
 * extended messages
 * LuaJIT optimized backend compiler.
