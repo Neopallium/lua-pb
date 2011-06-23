@@ -5,8 +5,13 @@ Lua Protocol Buffers.
 
 Supports dynamic loading of Protocol Buffer message definition files `.proto`
 
-Modules
--------
+Installing
+----------
+
+	$ sudo luarocks install "https://raw.github.com/Neopallium/lua-pb/master/lua-pb-scm-0.rockspec"
+
+Design
+------
 
 Frontend `.proto` definition file parser:
 
@@ -55,9 +60,4 @@ TODO
 	}
 
 * services
-
-Installing
-----------
-
-	$ sudo luarocks install "https://raw.github.com/Neopallium/lua-pb/master/lua-pb-scm-0.rockspec"
 
