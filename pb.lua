@@ -181,6 +181,6 @@ function dump(msg)
 end
 
 function _M.print(msg)
-	print(dump(msg))
+	io.write(dump(msg))
 end
 

@@ -24,6 +24,8 @@ local print = print
 local error = error
 local tostring = tostring
 local setmetatable = setmetatable
+local type = type
+local rawset = rawset
 
 local struct = require"struct"
 local spack = struct.pack
@@ -143,7 +145,7 @@ __index = function(tab, ftype)
 		-- complex type (Enums)
 		fpack = ftype
 	end
-	rawset(tag, ftype, function(buf, off, len, arr)
+	rawset(tab, ftype, function(buf, off, len, arr)
 		for i=1, #arr do
 			off, len = fpack(buf, off, len, arr[i])
 		end

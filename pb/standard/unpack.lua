@@ -26,6 +26,8 @@ local tostring = tostring
 local setmetatable = setmetatable
 local sformat = string.format
 local type = type
+local pcall = pcall
+local rawset = rawset
 
 local mod_path = ...
 
@@ -224,7 +226,7 @@ __index = function(tab, ftype)
 		-- complex type (Enums)
 		funpack = ftype
 	end
-	rawset(tag, ftype, function(data, off, len, arr)
+	rawset(tab, ftype, function(data, off, len, arr)
 		local i=#arr
 		while (off <= len) do
 			i = i + 1
