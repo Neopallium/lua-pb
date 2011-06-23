@@ -97,11 +97,7 @@ local function resolve_type(node, name)
 	return nil
 end
 
-local function compile_fields(node, fields)
-	-- create 'tag_type' -> field map
-	local tags = {}
-	node.tags = tags
-
+local function compile_fields(node, fields, tags)
 	for i=1,#fields do
 		local field = fields[i]
 		-- repated fields
@@ -156,6 +152,7 @@ local function compile_fields(node, fields)
 		field.wire_type = wire_type
 		-- map field 'tag_type' -> field, for faster field decoding
 		tags[tag_type] = field
+		tags[tag] = field
 	end
 end
 
@@ -166,7 +163,7 @@ local function compile_types(parent, types)
 		-- check if AST node has fields.
 		local fields = ast.fields
 		if fields then
-			compile_fields(node, fields)
+			compile_fields(node, fields, ast.tags)
 		end
 		-- compile sub-types
 		local types = ast.types
@@ -203,10 +200,13 @@ end
 local function define_message(parent, name, ast, is_group)
 	local fields = ast.fields
 	local methods = {}
+	local tags = {}
+	ast.tags = tags
 
 	-- create Metatable for Message.
 	local mt = { name = name, is_group = is_group,
 	fields = fields,
+	tags = tags,
 	__index = function(msg, name)
 		local data = msg['.data'] -- field data.
 		-- get field value.
@@ -272,7 +272,7 @@ local function define_message(parent, name, ast, is_group)
 			if not msg then
 				msg = new_msg(mt)
 			end
-			return unpack(data, off, len, msg, fields, end_tag)
+			return unpack(data, off, len, msg, tags, end_tag)
 		end
 		node['.dump'] = function(buf, off, msg, depth)
 			return dump(buf, off, msg, fields, depth)
@@ -287,7 +287,7 @@ local function define_message(parent, name, ast, is_group)
 			return encode_msg(msg, fields)
 		end
 		methods['.decode'] = function(msg, data, off)
-			return decode_msg(msg, data, off or 1, fields)
+			return decode_msg(msg, data, off or 1, tags)
 		end
 		methods['.dump'] = function(msg, depth)
 			return dump_msg(msg, fields, depth)
@@ -300,7 +300,7 @@ local function define_message(parent, name, ast, is_group)
 			if not msg then
 				msg = new_msg(mt)
 			end
-			return unpack(data, off, len, msg, fields)
+			return unpack(data, off, len, msg, tags)
 		end
 		node['.dump'] = function(buf, off, msg, depth)
 			return dump(buf, off, msg, fields, depth)
