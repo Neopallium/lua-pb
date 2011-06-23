@@ -144,10 +144,38 @@ function string(data, off)
 	return data:sub(off, end_off - 1), end_off
 end
 
+local function decode_field_tag(data, off)
+	local tag_type
+	tag_type, off = unpack_varint32(data, off)
+	local tag = rshift(tag_type, 3)
+	local wire_type = band(tag_type, 7)
+	return tag, wire_type, off
+end
+
 --
 -- WireType unpack functions for unknown fields.
 --
 local unpack_unknown_field
+
+local function try_unpack_unknown_message(data, off, len)
+	local tag, wire_type, val
+	-- create new list of unknown fields.
+	local msg = new_unknown()
+	-- unpack fields for unknown message
+	while (off <= len) do
+		-- decode field tag & wire_type
+		tag, wire_type, off = decode_field_tag(data, off)
+		-- unpack field
+		val, off = unpack_unknown_field(data, off, len, tag, wire_type, msg)
+	end
+	-- validate message
+	if (off - 1) ~= len then
+		error(sformat("Malformed Message, truncated ((off:%d) - 1) ~= len:%d): %s",
+			off, len, tostring(msg)))
+	end
+	return msg, off
+end
+
 local wire_unpack = {
 [0] = function(data, off, len, tag, unknowns)
 	local val
@@ -166,15 +194,24 @@ end,
 	return val, off
 end,
 [2] = function(data, off, len, tag, unknowns)
-	local val
-	-- unpack length-delimited field
-	val, off = string(data, off)
+	local len, end_off, val
+	-- decode data length.
+	len, off = unpack_varint32(data, off)
+	end_off = off + len
+	-- try to decode as a message
+	local status
+	status, val = pcall(try_unpack_unknown_message, data, off, end_off - 1)
+	if not status then
+		-- failed to decode as a message
+		-- decode as raw data.
+		val = data:sub(off, end_off - 1)
+	end
 	-- add to list of unknown fields
 	unknowns:addField(tag, 2, val)
-	return val, off
+	return val, end_off
 end,
 [3] = function(data, off, len, group_tag, unknowns)
-	local tag, wire_type
+	local tag, wire_type, val
 	-- add to list of unknown fields
 	local group = unknowns:addGroup(group_tag)
 	-- unpack fields for unknown group.
@@ -189,7 +226,7 @@ end,
 			return group, off
 		end
 		-- unpack field
-		unpack_unknown_field(data, off, len, tag, wire_type, group)
+		val, off = unpack_unknown_field(data, off, len, tag, wire_type, group)
 	end
 	error("Malformed Group, missing 'End group' tag")
 end,
@@ -236,14 +273,6 @@ __index = function(tab, ftype)
 	end)
 end,
 })
-
-function decode_field_tag(data, off)
-	local tag_type
-	tag_type, off = unpack_varint32(data, off)
-	local tag = rshift(tag_type, 3)
-	local wire_type = band(tag_type, 7)
-	return tag, wire_type, off
-end
 
 local unpack_field
 local unpack_fields

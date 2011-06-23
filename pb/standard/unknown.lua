@@ -11,7 +11,7 @@ local function new()
 end
 
 function mt:addField(tag, wire, value)
-	self[#self + 1] = { tag, wire, value }
+	self[#self + 1] = { tag=tag, wire=wire, value=value }
 end
 
 function mt:addVarint(tag, value)
