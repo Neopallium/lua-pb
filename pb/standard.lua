@@ -117,8 +117,8 @@ local function compile_fields(node, fields)
 				wire_type = wire_types.enum
 				if field.is_packed then
 					-- packed enum
-					field.pack = fpack.packed.enum
-					field.unpack = funpack.packed.enum
+					field.pack = fpack.packed[field.pack]
+					field.unpack = funpack.packed[field.unpack]
 				end
 			else
 				wire_type = wire_types.message
@@ -145,15 +145,16 @@ end
 local function compile_types(parent, types)
 	for i=1,#types do
 		local ast = types[i]
+		local node = parent[ast.name]
 		-- check if AST node has fields.
 		local fields = ast.fields
 		if fields then
-			compile_fields(parent[ast.name], fields)
+			compile_fields(node, fields)
 		end
 		-- compile sub-types
 		local types = ast.types
 		if types then
-			compile_types(parent, types)
+			compile_types(node, types)
 		end
 	end
 end

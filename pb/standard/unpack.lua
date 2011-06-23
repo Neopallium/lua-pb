@@ -216,7 +216,14 @@ end
 --
 packed = setmetatable({},{
 __index = function(tab, ftype)
-	local funpack = _M[ftype]
+	local funpack
+	if type(ftype) == 'string' then
+		-- basic type
+		funpack = _M[ftype]
+	else
+		-- complex type (Enums)
+		funpack = ftype
+	end
 	rawset(tag, ftype, function(data, off, len, arr)
 		local i=#arr
 		while (off <= len) do
