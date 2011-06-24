@@ -23,11 +23,11 @@ local tremove = table.remove
 local tsort = table.sort
 local assert = assert
 
-local pack = string.match(...,"[-_a-zA-Z0-9.]*[.]") or ''
+local mod_path = string.match(...,".*%.") or ''
 
 local lp = require"lpeg"
-local scanner = require(pack .. "scanner")
-local grammar = require(pack .. "grammar")
+local scanner = require(mod_path .. "scanner")
+local grammar = require(mod_path .. "grammar")
 
 -- field tag sort function.
 local function sort_tags(f1, f2)

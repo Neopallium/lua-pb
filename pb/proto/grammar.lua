@@ -22,11 +22,11 @@ local print = print
 local upper = string.upper
 local sfind = string.find
 
-local pack = string.match(...,"[-_a-zA-Z0-9.]*[.]") or ''
+local mod_path = string.match(...,".*%.") or ''
 
 local lp = require"lpeg"
-local util = require(pack .. 'util')
-local scanner = require(pack .. 'scanner')
+local util = require(mod_path .. 'util')
+local scanner = require(mod_path .. 'scanner')
 local error = scanner.error
 local P=lp.P
 local S=lp.S

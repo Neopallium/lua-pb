@@ -29,9 +29,9 @@ local type = type
 local pcall = pcall
 local rawset = rawset
 
-local mod_path = ...
+local mod_path = string.match(...,".*%.") or ''
 
-local unknown = require(mod_path:gsub('(%.[-_%w]*)$','') .. ".unknown")
+local unknown = require(mod_path .. "unknown")
 local new_unknown = unknown.new
 
 local struct = require"struct"
