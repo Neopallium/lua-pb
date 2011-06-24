@@ -106,8 +106,14 @@ function set_default_backend(name)
 	return old
 end
 
-function load_proto(text, backend, require)
+local loading = "loading...."
+function load_proto(text, name, backend, require)
 	local b = get_backend(backend)
+
+	-- Use sentinel mark in cache. (to detect import loops).
+	if name then
+		b.cache[name] = loading
+	end
 
 	-- parse .proto into AST tree
 	local ast = parser.parse(text)
@@ -126,10 +132,16 @@ function load_proto(text, backend, require)
 	end
 
 	-- compile AST tree into Message definitions
-	return b.compile(ast)
+	local proto = b.compile(ast)
+
+	-- cache compiled .proto
+	if name then
+		b.cache[name] = proto
+	end
+
+	return proto
 end
 
-local loading = "loading...."
 function require(name, backend)
 	local b = get_backend(backend)
 	-- check cache for compiled .proto
@@ -138,20 +150,13 @@ function require(name, backend)
 	-- return compiled .proto, if cached
 	if proto then return proto end
 
-	-- Use sentinel mark in cache. (to detect import loops).
-	b.cache[name] = loading
-
 	-- load .proto file.
 	local f=assert(find_proto(name, _M.path))
 	local text = f:read("*a")
 	f:close()
 
 	-- compile AST tree into Message definitions
-	proto = load_proto(text, backend, require)
-
-	-- cache compiled .proto
-	b.cache[name] = proto
-	return proto
+	return load_proto(text, name, backend, require)
 end
 
 -- install pb.require as a package loader

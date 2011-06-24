@@ -20,6 +20,9 @@
 
 local assert = assert
 local tostring = tostring
+local type = type
+local sformat = string.format
+local tsort = table.sort
 
 local mod_path = ...
 
@@ -83,18 +86,91 @@ end
 
 local define_types
 
-local function resolve_type(node, name)
-	-- check current node for type.
-	local _type = node[name]
-	if _type then
-		return _type
+-- get root node
+local function get_root(node)
+	local parent = node['.parent']
+	if parent then
+		return get_root(parent)
 	end
+	-- found root.
+	return node
+end
+
+-- search a node for a type with 'name'.
+local function find_type(node, name)
+	local _type
+	-- check full name
+	_type = node[name]
+	if _type then return _type end
+	-- check multi-level names (i.e. "OuterMessage.InnerMessage")
+	for part in name:gmatch("([^.]+)") do
+		_type = node[part]
+		if not _type then
+			-- part not found, abort search
+			return nil
+		end
+		-- found part, now check it for the next part
+		node = _type
+	end
+	return _type
+end
+
+local function check_package_prefix(node, name)
+	-- check for package prefix.
+	local package = node['.package']
+	if package then
+		package = package .. '.'
+		local plen = #package
+		if name:sub(1, plen) == package then
+			-- matches, trim package prefix from name.
+			return true, name:sub(plen + 1)
+		end
+		-- name is not in package.
+		return false, name
+	end
+	-- no package prefix.
+	return false, name
+end
+
+local function resolve_type_internal(node, name, skip_node)
+	-- check current node for type.
+	local _type = find_type(node, name)
+	if _type ~= skip_node then return _type end
 	-- check parent.
 	local parent = node['.parent']
 	if parent then
-		return resolve_type(parent, name)
+		return resolve_type_internal(parent, name, skip_node)
+	else
+		-- no more parents, at root node.
+		-- check if 'name' has the current package prefixed.
+		local prefixed, sub_name = check_package_prefix(node, name)
+		if prefixed then
+			-- search for sub-type
+			return resolve_type_internal(node, sub_name, skip_node)
+		end
+		-- type not in current package, check imports.
+		local imports = node['.imports']
+		-- at root node, now check imports.
+		if imports then
+			for i=1,#imports do
+				local import = imports[i].proto
+				-- search each import
+				_type = resolve_type_internal(imports[i].proto, name, skip_node)
+				if _type then return _type end
+			end
+		end
 	end
 	return nil
+end
+
+local function resolve_type(node, name, skip_node)
+	-- check for absolute type name.
+	if name:sub(1,1) == '.' then
+		name = name:sub(2) -- trim '.' from start.
+		-- skip to root node.
+		node = get_root(node)
+	end
+	return resolve_type_internal(node, name, skip_node)
 end
 
 local function compile_fields(node, fields, tags)
@@ -211,7 +287,7 @@ local function define_message(parent, name, ast, is_group)
 		local data = msg['.data'] -- field data.
 		-- get field value.
 		local value = data[name]
-			-- field is already set, just return the value
+		-- field is already set, just return the value
 		if value then return value end
 		-- check field for a default value.
 		local field = fields[name] -- field info.
@@ -244,8 +320,11 @@ local function define_message(parent, name, ast, is_group)
 	local node = setmetatable({
 	['.mt'] = mt,
 	-- Message info.
+	['.type'] = ast['.type'],
 	['.parent'] = parent,
 	['.name'] = name,
+	['.fields'] = fields,
+	['.extensions'] = ast.extensions,
 	-- Message constructor.
 	['.new'] = function(data)
 		return new_msg(mt, data)
@@ -341,6 +420,72 @@ local function define_enum(parent, name, node)
 	return node
 end
 
+local function check_extension(extensions, tag)
+	for i=1,#extensions do
+		local extension = extensions[i]
+		if type(extension) == 'number' then
+			-- check single extension value.
+			if extension == tag then return true end
+		else
+			-- check range
+			local first, last = extension[1], extension[2]
+			if first <= tag and tag <= last then return true end
+		end
+	end
+	return false
+end
+
+-- field tag sort function.
+local function sort_tags(f1, f2)
+	return f1.tag < f2.tag
+end
+
+local function define_extend(parent, name, ast)
+	-- find extended message
+	local message = resolve_type(parent, name)
+	-- validate extend
+	assert(message, "Can't find extended 'message' " .. name)
+	assert(message['.type'] == 'message', "Only 'message' types can be extended.")
+	-- make sure the extended fields exists as extensions in the extended message.
+	local extensions = message['.extensions']
+	assert(extensions, "Extended 'message' type has no extensions, can't extend it.")
+	local fields = ast.fields
+	-- check that each extend field is an extension in the extended message.
+	for i=1,#fields do
+		local field = fields[i]
+		if not check_extension(extensions, field.tag) then
+			-- invalid extension
+			error(sformat("Missing extension for field '%s' in extend '%s'", field.name, name))
+		end
+	end
+
+	local extend = define_message(parent, name, ast, false)
+	local m_mt = message['.mt']
+	local mt = extend['.mt']
+	-- copy fields from extended message.
+	local m_fields = m_mt.fields
+	local fields = mt.fields
+	local fcount = #fields
+	for i=1,#m_fields do
+		local field = m_fields[i]
+		local name = field.name
+		fcount = fcount + 1
+		fields[fcount] = field
+		fields[name] = field
+	end
+	tsort(fields, sort_tags)
+
+	local m_tags = m_mt.tags
+	local tags = mt.tags
+	for i=1,#m_tags do
+		local field = m_tags[i]
+		tags[field.tag] = field
+		tags[field.tag_type] = field
+	end
+
+	return extend
+end
+
 function define_types(parent, types)
 	if not types then return end
 	for i=1,#types do
@@ -351,6 +496,8 @@ function define_types(parent, types)
 			define_message(parent, name, ast, false)
 		elseif node_type == 'group' then
 			define_message(parent, name, ast, true)
+		elseif node_type == 'extend' then
+			define_extend(parent, name, ast)
 		elseif node_type == 'enum' then
 			define_enum(parent, name, ast)
 		else
@@ -362,7 +509,10 @@ end
 module(...)
 
 function compile(ast)
-	local proto = {}
+	local proto = {
+		['.package'] = ast.package,
+		['.imports'] = ast.imports,
+	}
 	-- phaze one: define types.
 	define_types(proto, ast.types)
 	-- phaze two: compile/resolve fields.

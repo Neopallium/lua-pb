@@ -67,54 +67,8 @@ local function CapNode(ntype, ...)
 	end
 end
 
-local captures = {
-[1] = function(...)
-	local types = {}
-	local proto = {
-		types = types,
-		...
-	}
-	local tcount = 0
-	for i=1,#proto do
-		local sub = proto[i]
-		local sub_type = node_type(sub)
-		proto[i] = nil
-		if sub_type == 'option' then
-			create(proto, 'options')
-			proto.options[sub.name] = sub.value
-		elseif sub_type == 'package' then
-			proto.package = sub.name
-		elseif sub_type == 'import' then
-			local imports = create(proto, 'imports')
-			imports[#imports + 1] = sub
-		elseif sub_type == 'service' then
-			create(proto, 'services')
-			proto.services[sub.name] = sub
-		else
-			-- map 'name' -> type
-			types[sub.name] = sub
-			-- add types to array
-			tcount = tcount + 1
-			types[tcount] = sub
-		end
-	end
-	return proto
-end,
-Package = CapNode("package",
-	"name"
-),
-Import = CapNode("import",
-	"file"
-),
-Option = CapNode("option",
-	"name", "value"
-),
-Message = function(name, body)
-	local node = make_node('message', body)
-	node.name = name
-	return node
-end,
-MessageBody = function(...)
+-- process captures from the body of message/group/extend nodes.
+local function message_body(...)
 	local fields = {}
 	local body = {
 		fields = fields,
@@ -164,7 +118,62 @@ MessageBody = function(...)
 	-- sort fields by tag
 	tsort(fields, sort_tags)
 	return body
+end
+
+local captures = {
+[1] = function(...)
+	local types = {}
+	local proto = {
+		types = types,
+		...
+	}
+	local tcount = 0
+	for i=1,#proto do
+		local sub = proto[i]
+		local sub_type = node_type(sub)
+		proto[i] = nil
+		if sub_type == 'option' then
+			create(proto, 'options')
+			proto.options[sub.name] = sub.value
+		elseif sub_type == 'package' then
+			proto.package = sub.name
+		elseif sub_type == 'import' then
+			local imports = create(proto, 'imports')
+			imports[#imports + 1] = sub
+		elseif sub_type == 'service' then
+			create(proto, 'services')
+			proto.services[sub.name] = sub
+		else
+			-- map 'name' -> type
+			types[sub.name] = sub
+			-- add types to array
+			tcount = tcount + 1
+			types[tcount] = sub
+		end
+	end
+	return proto
 end,
+Package = CapNode("package",
+	"name"
+),
+Import = CapNode("import",
+	"file"
+),
+Option = CapNode("option",
+	"name", "value"
+),
+Message = function(name, body)
+	local node = make_node('message', body)
+	node.name = name
+	return node
+end,
+MessageBody = message_body,
+Extend = function(name, body)
+	local node = make_node('extend', body)
+	node.name = name
+	return node
+end,
+ExtendBody = message_body,
 Group = function(rule, name, tag, body)
 	local group_ftype = 'group_' .. name
 	local group = make_node('group', body)

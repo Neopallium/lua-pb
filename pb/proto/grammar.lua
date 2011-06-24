@@ -104,7 +104,8 @@ Package = V'PACKAGE' *S* eV'Name' *E,
 Option = V'OPTION' *S* V'OptionBody' *E,
 OptionBody = eV'Name' *S* eV'=' *S* eV'Constant',
 
-Extend = V'EXTEND' *S* eV'UserType' *S* eV'{' * (S* (V'Group' + V'Field' + V';'))^0 *S* eV'}',
+Extend = V'EXTEND' *S* eV'UserType' *S* eV'{' * V'ExtendBody' *S* eV'}',
+ExtendBody = (S* (V'Group' + V'Field' + V';'))^0,
 
 Enum = V'ENUM' *S* V'ID' *S* eV'{' * (S* (V'Option' + V'EnumField' + V';'))^0 *S* eV'}',
 EnumField = V'ID' *S* eV'=' *S* eV'IntLit' *E,
@@ -113,12 +114,13 @@ Service = V'SERVICE' *S* eV'ID' *S* eV'{' * (S* (V'Option' + V'rpc' + V';'))^0 *
 rpc = V'RPC' *S* eV'ID' *S* eV'(' *S* V'UserType' *S* V')' *S*
 	eV'RETURNS' *S* eV'(' *S* eV'UserType' *S* eV')' *E,
 
-Group = V'FieldRule' *S* V'GROUP' *S* eV'GroupName' *S* eV'=' *S* eV'IntLit' *S* V'MessageBody',
+Group = V'FieldRule' *S* V'GROUP' *S* eV'GroupName' *S* eV'=' *S* eV'IntLit' *S* eV'{' *
+	V'MessageBody' *S* eV'}',
 
-Message = V'MESSAGE' *S* eV'ID' *S* V'MessageBody',
+Message = V'MESSAGE' *S* eV'ID' *S* eV'{' * V'MessageBody' *S* eV'}',
 
-MessageBody = eV'{' * (S* (V'Group' + V'Field' + V'Enum' + V'Message' + V'Extend' + V'Extensions'
-	+ V'Option' + V';'))^0 *S* eV'}',
+MessageBody = (S* (V'Group' + V'Field' + V'Enum' + V'Message' + V'Extend' + V'Extensions'
+	+ V'Option' + V';'))^0,
 
 Field = V'FieldRule' *S* eV'Type' *S* eV'ID' *S* eV'=' *S* eV'IntLit' *S*
 	( V'[' *S* V'FieldOptions' *S* eV']')^-1 *E,

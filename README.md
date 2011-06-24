@@ -35,17 +35,15 @@ Standard backend compiler
 Finished
 --------
 * .proto definition parser
-* Message encoder
-* Message decoder
-* Support for packing/unpacking unknown fields.
+* Message encoding/decoding
 * Dumping messages to text format.
+* Support for packing/unpacking unknown fields.
 
 TODO
 ----
 
-* resolving nested types (OuterMessage.InnerMessage)
-* extended messages
-* LuaJIT optimized backend compiler.
+Missing features:
+
 * custom options:
 
 	import "google/protobuf/descriptor.proto";
@@ -59,4 +57,10 @@ TODO
 	}
 
 * services
+
+
+Improvements:
+
+* store unknown fields as raw binary, only fully decode when accessed.
+* LuaJIT optimized backend compiler.
 
