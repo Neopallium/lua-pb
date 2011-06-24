@@ -87,6 +87,8 @@ function speedtest(name, N, func, p1, p2, p3, p4, p5, p6)
 
 	end_mem = (collectgarbage"count" * 1024)
 	printf("total time: %10.6f (%10.6f) seconds", secs1, secs2)
+	printf("time per: %10.6f (%10.6f) microseconds",
+		(secs1 / N) * 1000 * 1000, (secs2 / N) * 1000 * 1000)
 	printf('Total memory used: %10.3f Kbytes\n', (end_mem - start_mem) / 1024)
 
 	collectgarbage"restart"
