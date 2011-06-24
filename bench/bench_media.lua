@@ -99,6 +99,18 @@ local msg = create_media()
 
 check_MediaContent(msg)
 
+print("------------ create empty benchmark.")
+bench.memtest("create empty Media", 100, MediaContent)
+bench.speedtest("create empty Media", 100000, MediaContent)
+
+print("Memory usage:", collectgarbage"count")
+
+print("------------ create full benchmark.")
+bench.memtest("create full Media", 100, create_media)
+bench.speedtest("create full Media", 100000, create_media)
+
+print("Memory usage:", collectgarbage"count")
+
 print("------------ check benchmark.")
 bench.memtest("check Media", 100, check_MediaContent, msg)
 bench.speedtest("check Media", 100000, check_MediaContent, msg)
