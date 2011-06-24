@@ -95,37 +95,42 @@ local function check_MediaContent(content)
 	assert(img.size == 'SMALL')
 end
 
+local loop = tonumber(arg[1] or 100000)
+
 local msg = create_media()
+---[[
 
 check_MediaContent(msg)
 
 print("------------ create empty benchmark.")
 bench.memtest("create empty Media", 100, MediaContent)
-bench.speedtest("create empty Media", 100000, MediaContent)
+bench.speedtest("create empty Media", loop, MediaContent)
 
 print("Memory usage:", collectgarbage"count")
 
 print("------------ create full benchmark.")
 bench.memtest("create full Media", 100, create_media)
-bench.speedtest("create full Media", 100000, create_media)
+bench.speedtest("create full Media", loop, create_media)
 
 print("Memory usage:", collectgarbage"count")
 
 print("------------ check benchmark.")
 bench.memtest("check Media", 100, check_MediaContent, msg)
-bench.speedtest("check Media", 100000, check_MediaContent, msg)
+bench.speedtest("check Media", loop, check_MediaContent, msg)
 
 print("Memory usage:", collectgarbage"count")
+--]]
 
 print("------------ encode same benchmark.")
 bench.memtest("encode same Media", 100, encode_msg, msg)
-bench.speedtest("encode same Media", 100000, encode_msg, msg)
+bench.speedtest("encode same Media", loop, encode_msg, msg)
 
 print("Memory usage:", collectgarbage"count")
 
+---[[
 print("------------ encode different benchmark.")
 bench.memtest("encode different Media", 100, encode_new_msg, create_media)
-bench.speedtest("encode different Media", 100000, encode_new_msg, create_media)
+bench.speedtest("encode different Media", loop, encode_new_msg, create_media)
 
 print("Memory usage:", collectgarbage"count")
 
@@ -134,7 +139,8 @@ local bin = encode_msg(msg)
 local msg1, off = decode_msg(MediaContent(), bin)
 check_MediaContent(msg1)
 bench.memtest("decode Media", 100, decode_new_msg, MediaContent, bin)
-bench.speedtest("decode Media", 100000, decode_new_msg, MediaContent, bin)
+bench.speedtest("decode Media", loop, decode_new_msg, MediaContent, bin)
 
 print("Memory usage:", collectgarbage"count")
+--]]
 
