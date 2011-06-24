@@ -200,7 +200,9 @@ end,
 	end_off = off + len
 	-- try to decode as a message
 	local status
-	status, val = pcall(try_unpack_unknown_message, data, off, end_off - 1)
+	if len > 1 then
+		status, val = pcall(try_unpack_unknown_message, data, off, end_off - 1)
+	end
 	if not status then
 		-- failed to decode as a message
 		-- decode as raw data.
