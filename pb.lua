@@ -23,6 +23,7 @@ local fopen = io.open
 local assert = assert
 local sformat = string.format
 local print = print
+local ploaders = package.loaders
 
 local dir_sep = package.config:sub(1,1)
 local path_sep = package.config:sub(3,3)
@@ -152,6 +153,16 @@ function require(name, backend)
 	b.cache[name] = proto
 	return proto
 end
+
+-- install pb.require as a package loader
+local function pb_loader(...)
+	local proto = require(...)
+	-- simulate module loading.
+	return function()
+		return proto
+	end
+end
+ploaders[#ploaders + 1] = pb_loader
 
 function encode(msg)
 	local encode_msg = msg['.encode']

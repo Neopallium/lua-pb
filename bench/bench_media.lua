@@ -14,7 +14,7 @@ end
 local bench = require"bench.bench"
 
 -- load .proto file.
-local media = pb.require"protos.media"
+local media = require"protos.media"
 
 local MediaContent = media.MediaContent
 

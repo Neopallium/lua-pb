@@ -7,7 +7,7 @@ if #arg < 3 then
 	return
 end
 
-local proto = pb.require(arg[1])
+local proto = require(arg[1])
 local msg = proto[arg[2]]()
 
 local f = assert(io.open(arg[3]))
