@@ -160,6 +160,47 @@ function encode_field_tag(tag, wire_type)
 end
 
 local pack_fields
+local pack_unknown_fields
+
+local wire_types = {
+[0] = function(buf, off, len, val)
+	return append(buf, off, len, pack_varint64(val))
+end,
+[1] = function(buf, off, len, val)
+	return fixed64(buf, off, len, val)
+end,
+[2] = function(buf, off, len, val)
+	if type(val) == 'table' then
+		local field_len = 0
+		local len_off
+
+		-- reserve space for message length
+		off = off + 1
+		len_off = off
+		buf[len_off] = '' -- place holder
+		-- pack unknown message
+		off, field_len = pack_unknown_fields(buf, off, 0, val)
+
+		-- encode field length.
+		local len_data = pack_varint32(field_len)
+		buf[len_off] = len_data
+
+		return off, len + field_len + #len_data
+	end
+	-- pack string
+	return string(buf, off, len, val)
+end,
+[3] = function(buf, off, len, val)
+	-- pack group fields.
+	off, len = pack_unknown_fields(buf, off, len, val)
+	-- pack 'End group' tag.
+	return append(buf, off, len, encode_field_tag(val.tag, 4))
+end,
+[4] = nil, -- End group
+[5] = function(buf, off, len, val)
+	return fixed32(buf, off, len, val)
+end,
+}
 
 local function pack_length_field(buf, off, len, field, val)
 	local pack = field.pack
@@ -203,6 +244,22 @@ local function pack_repeated(buf, off, len, field, arr)
 	return off, len
 end
 
+function pack_unknown_fields(buf, off, len, unknowns)
+	for i=1,#unknowns do
+		local field = unknowns[i]
+		local wire = field.wire
+		-- pack field tag.
+		off, len = append(buf, off, len, encode_field_tag(field.tag, wire))
+		-- pack field
+		local pack = wire_types[wire]
+		if not pack then
+			error("Invalid unknown field wire_type=" .. tostring(wire))
+		end
+		off, len = pack(buf, off, len, field.value)
+	end
+	return off, len
+end
+
 local function pack_fields(buf, off, len, msg, fields)
 	local data = msg['.data']
 	for i=1,#fields do
@@ -234,6 +291,11 @@ local function pack_fields(buf, off, len, msg, fields)
 				error("Missing required field in " .. tostring(msg))
 			end
 		end
+	end
+	-- pack unknown fields
+	local unknowns = data.unknown_fields
+	if unknowns then
+		return pack_unknown_fields(buf, off, len, unknowns)
 	end
 	return off, len
 end

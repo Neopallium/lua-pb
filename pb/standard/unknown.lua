@@ -6,8 +6,8 @@ local setmetatable = setmetatable
 local mt = {}
 mt.__index = mt
 
-local function new()
-	return setmetatable({}, mt)
+local function new(tag)
+	return setmetatable({tag = tag}, mt)
 end
 
 function mt:addField(tag, wire, value)
@@ -31,7 +31,7 @@ function mt:addLengthDelimited(tag, value)
 end
 
 function mt:addGroup(tag)
-	local field = new()
+	local field = new(tag)
 	self:addField(tag, 3, field)
 	return field
 end

@@ -37,13 +37,12 @@ Finished
 * .proto definition parser
 * Message encoder
 * Message decoder
-* Raw message decoding.
+* Support for packing/unpacking unknown fields.
 * Dumping messages to text format.
 
 TODO
 ----
 
-* packing unknown fields.
 * resolving nested types (OuterMessage.InnerMessage)
 * extended messages
 * LuaJIT optimized backend compiler.
