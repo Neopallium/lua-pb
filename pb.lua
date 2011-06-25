@@ -186,7 +186,7 @@ local function pb_loader(mod_name, ...)
 	local proto = require(mod_name, ...)
 	-- simulate module loading.
 	return function()
-		return install_proto(mod_name, proto)
+		return install_proto(proto['.package'] or mod_name, proto)
 	end
 end
 ploaders[#ploaders + 1] = pb_loader
