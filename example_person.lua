@@ -2,7 +2,7 @@
 require"pb"
 
 -- now you can use require to load person.proto
-local person = require"person"
+require"person"
 
 local msg = person.Person()
 msg.name = "John Doe"

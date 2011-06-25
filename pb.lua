@@ -18,6 +18,7 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 -- THE SOFTWARE.
 
+local _G = _G
 local io = io
 local fopen = io.open
 local assert = assert
@@ -159,12 +160,33 @@ function require(name, backend)
 	return load_proto(text, name, backend, require)
 end
 
+local function install_proto(mod_name, proto)
+	local parent = _G
+	local mod_path = mod_name:match("^(.*)%.[^.]*$")
+	if mod_path then
+		-- build module path nodes
+		for part in mod_path:gmatch("([^.]+)") do
+			local node = parent[part]
+			if not node then
+				-- create missing node.
+				node = {}
+				parent[part] = node
+			end
+			parent = node
+		end
+		-- remove package prefix from module name
+		mod_name = mod_name:sub(#mod_path+2)
+	end
+	parent[mod_name] = proto
+	return proto
+end
+
 -- install pb.require as a package loader
-local function pb_loader(...)
-	local proto = require(...)
+local function pb_loader(mod_name, ...)
+	local proto = require(mod_name, ...)
 	-- simulate module loading.
 	return function()
-		return proto
+		return install_proto(mod_name, proto)
 	end
 end
 ploaders[#ploaders + 1] = pb_loader
