@@ -250,25 +250,28 @@ local function compile_types(parent, types)
 end
 
 local function new_msg(mt, data)
-	data = data or {}
-	local fields = mt.fields
-	-- look for sub-messages
-	for i=1,#fields do
-		local field = fields[i]
-		local name = field.name
-		local field_mt = field.user_type_mt
-		if field_mt then
-			local value = data[name]
-			if value then
-				if field.is_repeated then
-					for i=1,#value do
-						value[i] = new_msg(field_mt, value[i])
+	if data then
+		local fields = mt.fields
+		-- look for sub-messages
+		for i=1,#fields do
+			local field = fields[i]
+			local name = field.name
+			local field_mt = field.user_type_mt
+			if field_mt then
+				local value = data[name]
+				if value then
+					if field.is_repeated then
+						for i=1,#value do
+							value[i] = new_msg(field_mt, value[i])
+						end
+					else
+						data[name] = new_msg(field_mt, value)
 					end
-				else
-					data[name] = new_msg(field_mt, value)
 				end
 			end
 		end
+	else
+		data = {}
 	end
 	return setmetatable({ ['.data'] = data}, mt)
 end
@@ -465,23 +468,20 @@ local function define_extend(parent, name, ast)
 	-- copy fields from extended message.
 	local m_fields = m_mt.fields
 	local fields = mt.fields
+	local tags = mt.tags
 	local fcount = #fields
 	for i=1,#m_fields do
 		local field = m_fields[i]
 		local name = field.name
+		-- add to fields
 		fcount = fcount + 1
 		fields[fcount] = field
 		fields[name] = field
-	end
-	tsort(fields, sort_tags)
-
-	local m_tags = m_mt.tags
-	local tags = mt.tags
-	for i=1,#m_tags do
-		local field = m_tags[i]
+		-- add to tags
 		tags[field.tag] = field
 		tags[field.tag_type] = field
 	end
+	tsort(fields, sort_tags)
 
 	return extend
 end
