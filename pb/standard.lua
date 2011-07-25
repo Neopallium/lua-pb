@@ -206,7 +206,7 @@ local function define_types(parent, types)
 end
 
 function defines.message(parent, name, ast)
-	local mt, pub = def_message(parent, name, ast, mt_tag)
+	local mt, pub = def_message(parent, name, ast)
 
 	-- define public interface.
 	local pub = setmetatable({

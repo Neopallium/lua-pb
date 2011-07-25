@@ -15,6 +15,9 @@ local unpack_msg = funpack.message
 
 local fdump = require(mod_path .. "dump")
 
+local repeated = require(mod_path .. "repeated")
+local new_repeated = repeated.new
+
 local buffer = require(mod_path .. "buffer")
 local new_buffer = buffer.new
 
@@ -71,8 +74,13 @@ local function dump_msg(msg, fields, depth)
 	return data
 end
 
+local msg_tag = {}
 local function new_message(mt, data)
+	-- check if data is already a message of this type.
+	if data and data[msg_tag] == mt then return data end
+	-- create new message.
 	local msg = setmetatable({ ['.data'] = {}}, mt)
+	-- if data is nil, then message is empty.
 	if not data then return msg end
 
 	-- copy data into message
@@ -122,6 +130,11 @@ function _M.def(parent, name, ast)
 			data.unknown_fields = value
 			return value
 		end
+		-- check for special 'msg_tag'
+		if name == msg_tag then
+			-- return metatable.  This is for message type validation.
+			return mt
+		end
 		error("Invalid field:" .. name)
 	end,
 	__newindex = function(msg, name, value)
@@ -132,13 +145,7 @@ function _M.def(parent, name, ast)
 		-- check if field is a message/group
 		local new = field.new
 		if new then
-			if field.is_repeated then
-				for i=1,#value do
-					value[i] = new(value[i])
-				end
-			else
-				value = new(value)
-			end
+			value = new(value)
 		end
 		data[name] = value
 	end,
@@ -275,6 +282,10 @@ function _M.compile(node, mt, fields)
 			field.is_basic = true
 			field.pack = fpack[ftype]
 			field.unpack = funpack[ftype]
+		end
+		-- if field is repeated, then create a new 'repeated' type for it.
+		if field.is_repeated then
+			field.new = new_repeated(field)
 		end
 		-- create field tag_type.
 		local tag_type = encode_field_tag(tag, wire_type)
