@@ -71,6 +71,9 @@ local function get_backend(name)
 	return backend
 end
 
+-- pre-load default backend
+get_backend(default_backend)
+
 local function find_proto(name, search_path)
 	local err_list = ''
 	-- convert dotted name to directory path.
@@ -191,15 +194,14 @@ local function pb_loader(mod_name, ...)
 end
 ploaders[#ploaders + 1] = pb_loader
 
-function encode(msg)
-	local encode_msg = msg['.encode']
-	return encode_msg(msg)
+function encode(msg, ...)
+	return msg:Serialize(...)
 end
 
 -- Raw Message for Raw decoding.
 local raw
 
-function decode(msg, data)
+function decode(msg, ...)
 	if not msg then
 		if not raw then
 			-- need to load Raw message definition.
@@ -209,13 +211,11 @@ function decode(msg, data)
 		-- Raw message decoding
 		msg = raw()
 	end
-	local decode_msg = msg['.decode']
-	return decode_msg(msg, data)
+	return msg:Parse(...)
 end
 
-function dump(msg)
-	local dump_msg = msg['.dump']
-	return dump_msg(msg)
+function dump(msg, ...)
+	return msg:Serialize('text', ...)
 end
 
 function _M.print(msg)
