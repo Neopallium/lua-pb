@@ -2,7 +2,9 @@
 
 Loads a .proto file.
 
-	pb.require(name)  
+```lua
+pb.require(name)  
+```
 
 # protobuf message methods
 
@@ -15,7 +17,9 @@ message. Singular fields that are set in the specified message overwrite
 the corresponding fields in the current message. Repeated fields are
 appended. Singular sub-messages and groups are recursively merged.
 
-	msg:MergeFrom(msg2)
+```lua
+msg:MergeFrom(msg2)
+```
 
 ## CopyFrom(other_msg)
 
@@ -24,13 +28,17 @@ Copies the contents of the specified message into the current message.
 The method clears the current message and then merges the specified
 message using MergeFrom.
 
-	msg:CopyFrom(msg2)
+```lua
+msg:CopyFrom(msg2)
+```
 
 ## IsInitialized()
 
 Checks if the message is initialized.
 
-	local is_init, errmsg = msg:IsInitialized()
+```lua
+local is_init, errmsg = msg:IsInitialized()
+```
 
 ## Merge(data, format, off)
 
@@ -54,8 +62,9 @@ Formats:
 
 * binary
 
-
-	local off = msg:Merge(data, 'text')
+```lua
+local off = msg:Merge(data, 'text')
+```
 
 ## Parse(data, format, off)
 
@@ -75,8 +84,9 @@ Formats:
 * binary
 * text
 
-
-	local bin, errmsg = msg:Serialize('text')
+```lua
+local bin, errmsg = msg:Serialize('text')
+```
 
 ## SerializePartial(format, depth)
 
