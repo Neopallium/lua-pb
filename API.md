@@ -32,6 +32,14 @@ message using MergeFrom.
 msg:CopyFrom(msg2)
 ```
 
+## Clear()
+
+Clears all data that was set in the message.
+
+```lua
+msg:Clear()
+```
+
 ## IsInitialized()
 
 Checks if the message is initialized.
@@ -47,7 +55,7 @@ Merges serialized protocol buffer data into this message.
 When we find a field in `data` that is already present
 in this message:
 
-* If it's a `repeated` field, we append to the end of our list.
+* If it's a "repeated" field, we append to the end of our list.
 * Else, if it's a scalar, we overwrite our field.
 * Else, (it's a nonrepeated composite), we recursively merge 
 into the existing composite.
@@ -55,7 +63,7 @@ into the existing composite.
 Args:
 
 * data: A serialized message encode in `format`.
-* format: The optional encoding format of `data`.  (defaults to 'binary').
+* format: The optional encoding format of `data`.  (defaults to "binary").
 * off: Optional offset into `data`.  (defaults to 1)
 
 Formats:
