@@ -39,9 +39,9 @@ Merges serialized protocol buffer data into this message.
 When we find a field in `data` that is already present
 in this message:
 
-* If it`s a `repeated` field, we append to the end of our list.
-* Else, if it`s a scalar, we overwrite our field.
-* Else, (it`s a nonrepeated composite), we recursively merge 
+* If it's a `repeated` field, we append to the end of our list.
+* Else, if it's a scalar, we overwrite our field.
+* Else, (it's a nonrepeated composite), we recursively merge 
 into the existing composite.
 
 Args:
@@ -53,6 +53,7 @@ Args:
 Formats:
 
 * binary
+
 
 	local off = msg:Merge(data, 'text')
 
@@ -73,6 +74,7 @@ Formats:
 
 * binary
 * text
+
 
 	local bin, errmsg = msg:Serialize('text')
 
