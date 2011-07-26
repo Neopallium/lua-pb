@@ -169,7 +169,6 @@ function _M.def(parent, name, ast)
 		function methods:Serialize(format, depth)
 			-- validate message before serialization.
 			local init, errmsg = self:IsInitialized()
-print("is init:", init, errmsg)
 			if not init then return init, errmsg end
 			-- now serialize message
 			return self:SerializePartial(format, depth)
