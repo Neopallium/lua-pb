@@ -251,7 +251,7 @@ local function pack_repeated(buf, off, len, field, arr)
 	return off, len
 end
 
-local function pack_unknown_fields(buf, off, len, unknowns)
+function pack_unknown_fields(buf, off, len, unknowns)
 	for i=1,#unknowns do
 		local field = unknowns[i]
 		local wire = field.wire
