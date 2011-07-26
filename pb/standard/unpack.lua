@@ -303,7 +303,7 @@ local function unpack_field(data, off, len, field, mdata)
 		local arr = mdata[name]
 		-- create array for repeated fields.
 		if not arr then
-			arr = {}
+			arr = field.new()
 			mdata[name] = arr
 		end
 		if field.is_packed then

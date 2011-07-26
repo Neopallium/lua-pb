@@ -44,6 +44,7 @@ local function new_message_repeated(field)
 			local init, errmsg = val:IsInitialized()
 			if not init then return init, errmsg end
 		end
+		return true
 	end
 
 	function mt:Clear()

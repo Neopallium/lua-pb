@@ -150,21 +150,39 @@ function _M.def(parent, name, ast)
 		mt.tag = ast.tag
 	else
 		-- top-level message Serialize/Parse functions
-		function methods:Serialize(format, depth)
+		function methods:SerializePartial(format, depth)
 			format = format or 'binary'
 			local encode = mt.encode[format]
 			if not encode then
-				error("Unsupported serialization format: " .. format)
+				return false, "Unsupported serialization format: " .. format
 			end
 			return encode(self, depth)
 		end
-		function methods:Parse(data, format, off)
+		function methods:Merge(data, format, off)
 			format = format or 'binary'
 			local decode = mt.decode[format]
 			if not decode then
-				error("Unsupported serialization format: " .. format)
+				return false, "Unsupported serialization format: " .. format
 			end
 			return decode(self, data, off or 1)
+		end
+		function methods:Serialize(format, depth)
+			-- validate message before serialization.
+			local init, errmsg = self:IsInitialized()
+print("is init:", init, errmsg)
+			if not init then return init, errmsg end
+			-- now serialize message
+			return self:SerializePartial(format, depth)
+		end
+		function methods:Parse(data, format, off)
+			-- Clear message before parsing it.
+			self:Clear()
+			-- Merge message data into empty message.
+			local msg, off = self:Merge(data, format, off)
+			-- validate message to make sure all required fields are set.
+			local init, errmsg = self:IsInitialized()
+			if not init then return init, errmsg, msg, off end
+			return msg, off
 		end
 	end
 

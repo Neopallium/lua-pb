@@ -293,10 +293,6 @@ local function pack_fields(buf, off, len, msg, fields)
 					off, len = field.pack(buf, off, len, val)
 				end
 			end
-		else
-			if field.rule == 'required' then
-				error("Missing required field in " .. tostring(msg))
-			end
 		end
 	end
 	-- pack unknown fields

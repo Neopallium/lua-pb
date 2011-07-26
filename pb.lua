@@ -209,6 +209,6 @@ function decode_raw(...)
 end
 
 function _M.print(msg)
-	io.write(msg:Serialize('text'))
+	io.write(msg:SerializePartial('text'))
 end
 
