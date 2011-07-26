@@ -25,12 +25,15 @@ is planned.
 
 Standard backend compiler
 
-* pb/standard.lua         -- main compiler code.
-* pb/standard/pack.lua    -- pack code (Uses modules luabitops & struct)
-* pb/standard/unpack.lua  -- unpack code (Uses modules luabitops & struct)
-* pb/standard/buffer.lua  -- encoding buffer
-* pb/standard/unknown.lua -- object for hold unknown fields.
-* pb/standard/dump.lua    -- message dumping code.
+* pb/standard.lua          -- main compiler code.
+* pb/handlers.lua          -- a helper object for managing registered encode/decode formats.
+* pb/standard/message.lua  -- defines message interface.
+* pb/standard/repeated.lua -- defines repeated field interface.
+* pb/standard/pack.lua     -- binary format encoding (Uses modules luabitops & struct)
+* pb/standard/unpack.lua   -- binary format decoding (Uses modules luabitops & struct)
+* pb/standard/buffer.lua   -- encoding buffer
+* pb/standard/unknown.lua  -- object for hold unknown fields.
+* pb/standard/dump.lua     -- message dumping code.
 
 Finished
 --------
@@ -41,6 +44,8 @@ Finished
 
 TODO
 ----
+
+* rename pb/handlers.lua to pb/formats.lua
 
 Missing features:
 
