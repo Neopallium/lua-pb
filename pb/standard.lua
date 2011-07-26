@@ -39,6 +39,25 @@ local def_message, new_message, compile_message = message.def, message.new, mess
 local utils = require(mod_path .. "utils")
 local copy = utils.copy
 
+local handlers = require(mod_path .. "handlers")
+local new_handlers = handlers.new
+
+local default_handler_list = {
+encode = {
+binary = fpack.register_msg,
+text = fdump.register_msg,
+},
+decode = {
+binary = funpack.register_msg,
+},
+}
+
+for _type,callbacks in pairs(default_handler_list) do
+	for format, cb in pairs(callbacks) do
+		handlers.register(_type, format, cb)
+	end
+end
+
 -- get the Metatable from a public interface table.  A special private value
 -- is used to hid the Metatable from the user.
 local mt_tag = {}
@@ -205,7 +224,11 @@ local function define_types(parent, types)
 end
 
 function defines.message(parent, name, ast)
-	local mt, pub = def_message(parent, name, ast)
+	local mt = def_message(parent, name, ast)
+
+	-- create encode/decode handlers for this message.
+	mt.encode = new_handlers('encode', mt)
+	mt.decode = new_handlers('decode', mt)
 
 	-- define public interface.
 	local pub = setmetatable({
@@ -236,24 +259,11 @@ defines.group = defines.message
 function defines.enum(parent, name, ast)
 	local pub = {}
 	local values = copy(ast.values)
-	local pack = fpack.enum
-	local unpack = funpack.enum
-	local dump = fdump.enum
+
+	-- create enum's metatable.
 	local mt = {
 	is_enum = true,
 	values = values,
-	-- field pack/unpack/dump functions
-	pack = function(buf, off, len, enum)
-		return pack(buf, off, len, values[enum])
-	end,
-	unpack = function(data, off, len)
-		local enum
-		enum, off = unpack(data, off, len)
-		return values[enum], off
-	end,
-	dump = function(buf, off, enum, depth)
-		return dump(buf, off, enum, depth)
-	end,
 	}
 
 	-- define public interface.

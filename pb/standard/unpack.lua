@@ -34,6 +34,13 @@ local mod_path = string.match(...,".*%.") or ''
 local unknown = require(mod_path .. "unknown")
 local new_unknown = unknown.new
 
+local buffer = require(mod_path .. "buffer")
+local new_buffer = buffer.new
+
+local pack = require(mod_path .. "pack")
+local encode_field_tag = pack.encode_field_tag
+local wire_types = pack.wire_types
+
 local struct = require"struct"
 local sunpack = struct.unpack
 
@@ -406,5 +413,95 @@ bytes  = "string",
 }
 for k,v in pairs(map_types) do
 	_M[k] = _M[v]
+end
+
+local register_fields
+
+local function get_type_unpack(mt)
+	local unpack = mt.unpack
+	-- check if this type has a unpack function.
+	if not unpack then
+		-- create a unpack function for this type.
+		if mt.is_enum then
+			local unpack_enum = enum
+			local values = mt.values
+			unpack = function(data, off, len, enum)
+				local enum
+				enum, off = unpack_enum(data, off, len)
+				return values[enum], off
+			end
+		elseif mt.is_message then
+			local tags = mt.tags
+			local new = mt.new
+			unpack = function(data, off, len, msg)
+				if not msg then
+					msg = new()
+				end
+				return message(data, off, len, msg, tags)
+			end
+			register_fields(mt)
+		elseif mt.is_group then
+			local tags = mt.tags
+			local new = mt.new
+			-- encode group end tag.
+			local end_tag = encode_field_tag(mt.tag, wire_types.group_end)
+			unpack = function(data, off, len, msg)
+				if not msg then
+					msg = new()
+				end
+				return group(data, off, len, msg, tags, end_tag)
+			end
+			register_fields(mt)
+		end
+		-- cache unpack function.
+		mt.unpack = unpack
+	end
+	return unpack
+end
+
+function register_fields(mt)
+	-- check if the fields where already registered.
+	if mt.unpack then return end
+	local tags = mt.tags
+	local fields = mt.fields
+	for i=1,#fields do
+		local field = fields[i]
+		local tag = field.tag
+		local ftype = field.ftype
+		local wire_type = wire_types[ftype]
+		-- check if the field is a user type
+		local user_type_mt = field.user_type_mt
+		if user_type_mt then
+			field.unpack = get_type_unpack(user_type_mt)
+			if field.is_group then
+				wire_type = wire_types.group_start
+			elseif user_type_mt.is_enum then
+				wire_type = wire_types.enum
+				if field.is_unpacked then
+					field.unpack = packed[field.unpack]
+				end
+			else
+				wire_type = wire_types.message
+			end
+		elseif field.is_unpacked then
+			field.unpack = packed[ftype]
+		else
+			field.unpack = _M[ftype]
+		end
+		-- create field tag_type.
+		local tag_type = encode_field_tag(tag, wire_type)
+		field.tag_type = tag_type
+		field.wire_type = wire_type
+	end
+end
+
+function register_msg(mt)
+	local tags = mt.tags
+	-- setup 'unpack' function for this message type.
+	get_type_unpack(mt)
+	-- create decode callback closure for this message type.
+	return function(msg, data, off)
+		return message(data, off, #data, msg, tags)
+	end
 end
 

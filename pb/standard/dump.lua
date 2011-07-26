@@ -28,6 +28,11 @@ local type = type
 local sformat = string.format
 local char = string.char
 
+local mod_path = string.match(...,".*%.") or ''
+
+local buffer = require(mod_path .. "buffer")
+local new_buffer = buffer.new
+
 local function append(buf, off, data)
 	off = off + 1
 	buf[off] = data
@@ -244,5 +249,62 @@ end
 function message(buf, off, msg, fields, depth)
 	-- dump message fields.
 	return dump_fields(buf, off, msg, fields, depth)
+end
+
+local register_fields
+
+local function get_type_dump(mt)
+	local dump = mt.dump
+	-- check if this type has a dump function.
+	if not dump then
+		-- create a dump function for this type.
+		if mt.is_enum then
+			dump = enum
+		elseif mt.is_message then
+			local fields = mt.fields
+			dump = function(buf, off, msg, depth)
+				return message(buf, off, msg, fields, depth)
+			end
+			register_fields(mt, fields)
+		elseif mt.is_group then
+			local fields = mt.fields
+			dump = function(buf, off, msg, depth)
+				return group(buf, off, msg, fields, depth)
+			end
+			register_fields(mt, fields)
+		end
+		-- cache dump function.
+		mt.dump = dump
+	end
+	return dump
+end
+
+function register_fields(mt, fields)
+	-- check if the fields where already registered.
+	if mt.dump then return end
+	for i=1,#fields do
+		local field = fields[i]
+		-- check if the field is a user type
+		local user_type_mt = field.user_type_mt
+		if user_type_mt then
+			field.dump = get_type_dump(user_type_mt)
+		end
+	end
+end
+
+function register_msg(mt)
+	local fields = mt.fields
+	-- setup 'dump' function for this message type.
+	get_type_dump(mt)
+	-- create encode callback closure for this message type.
+	return function(msg, depth)
+		local buf = new_buffer()
+
+		local off = message(buf, 0, msg, fields, depth or 0)
+
+		local data = buf:pack(1, off, true)
+		buf:release()
+		return data
+	end
 end
 

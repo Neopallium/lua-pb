@@ -27,6 +27,11 @@ local setmetatable = setmetatable
 local type = type
 local rawset = rawset
 
+local mod_path = string.match(...,".*%.") or ''
+
+local buffer = require(mod_path .. "buffer")
+local new_buffer = buffer.new
+
 local struct = require"struct"
 local spack = struct.pack
 
@@ -162,7 +167,7 @@ end
 local pack_fields
 local pack_unknown_fields
 
-local wire_types = {
+local wire_pack = {
 [0] = function(buf, off, len, val)
 	return append(buf, off, len, pack_varint64(val))
 end,
@@ -251,7 +256,7 @@ function pack_unknown_fields(buf, off, len, unknowns)
 		-- pack field tag.
 		off, len = append(buf, off, len, encode_field_tag(field.tag, wire))
 		-- pack field
-		local pack = wire_types[wire]
+		local pack = wire_pack[wire]
 		if not pack then
 			error("Invalid unknown field wire_type=" .. tostring(wire))
 		end
@@ -334,5 +339,110 @@ bytes  = "string",
 }
 for k,v in pairs(map_types) do
 	_M[k] = _M[v]
+end
+
+wire_types = {
+-- Varint types
+int32 = 0, int64 = 0,
+uint32 = 0, uint64 = 0,
+sint32 = 0, sint64 = 0,
+bool = 0, enum = 0,
+-- 64-bit fixed
+fixed64 = 1, sfixed64 = 1, double = 1,
+-- Length-delimited
+string = 2, bytes = 2,
+message = 2, packed = 2,
+-- Group (deprecated)
+group = 3, group_start = 3,
+group_end = 4,
+-- 32-bit fixed
+fixed32 = 5, sfixed32 = 5, float = 5,
+}
+
+local register_fields
+
+local function get_type_pack(mt)
+	local pack = mt.pack
+	-- check if this type has a pack function.
+	if not pack then
+		-- create a pack function for this type.
+		if mt.is_enum then
+			local pack_enum = enum
+			local values = mt.values
+			pack = function(buf, off, len, enum)
+				return pack_enum(buf, off, len, values[enum])
+			end
+		elseif mt.is_message then
+			local fields = mt.fields
+			pack = function(buf, off, len, msg)
+				return message(buf, off, len, msg, fields)
+			end
+			register_fields(mt, fields)
+		elseif mt.is_group then
+			local fields = mt.fields
+			-- encode group end tag.
+			local end_tag = encode_field_tag(mt.tag, wire_types.group_end)
+			pack = function(buf, off, len, msg)
+				return group(buf, off, len, msg, fields, end_tag)
+			end
+			register_fields(mt, fields)
+		end
+		-- cache pack function.
+		mt.pack = pack
+	end
+	return pack
+end
+
+function register_fields(mt, fields)
+	-- check if the fields where already registered.
+	if mt.pack then return end
+	local tags = mt.tags
+	for i=1,#fields do
+		local field = fields[i]
+		local tag = field.tag
+		local ftype = field.ftype
+		local wire_type = wire_types[ftype]
+		-- check if the field is a user type
+		local user_type_mt = field.user_type_mt
+		if user_type_mt then
+			field.pack = get_type_pack(user_type_mt)
+			if field.is_group then
+				wire_type = wire_types.group_start
+			elseif user_type_mt.is_enum then
+				wire_type = wire_types.enum
+				if field.is_packed then
+					field.pack = packed[field.pack]
+				end
+			else
+				wire_type = wire_types.message
+			end
+		elseif field.is_packed then
+			field.pack = packed[ftype]
+		else
+			field.pack = _M[ftype]
+		end
+		-- create field tag_type.
+		local tag_type = encode_field_tag(tag, wire_type)
+		field.tag_type = tag_type
+		field.wire_type = wire_type
+	end
+end
+
+function register_msg(mt)
+	local fields = mt.fields
+	-- setup 'pack' function for this message type.
+	get_type_pack(mt)
+	-- create encode callback closure for this message type.
+	return function(msg, depth)
+		local buf = new_buffer()
+
+		local off, len = message(buf, 0, 0, msg, fields)
+
+		local data = buf:pack(1, off, true)
+		buf:release()
+		assert(len == #data,
+			"Invalid packed length.  This shouldn't happen, there is a bug in the message packing code.")
+		return data
+	end
 end
 

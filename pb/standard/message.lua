@@ -8,14 +8,6 @@ local rawget = rawget
 
 local mod_path = string.match(...,".*%.") or ''
 
-local fpack = require(mod_path .. "pack")
-local encode_field_tag = fpack.encode_field_tag
-local funpack = require(mod_path .. "unpack")
-local pack_msg = fpack.message
-local unpack_msg = funpack.message
-
-local fdump = require(mod_path .. "dump")
-
 local repeated = require(mod_path .. "repeated")
 local new_repeated = repeated.new
 
@@ -31,49 +23,19 @@ local copy = utils.copy
 
 local _M = {}
 
-local wire_types = {
+local basic_types = {
 -- Varint types
-int32 = 0, int64 = 0,
-uint32 = 0, uint64 = 0,
-sint32 = 0, sint64 = 0,
-bool = 0, enum = 0,
+int32 = true, int64 = true,
+uint32 = true, uint64 = true,
+sint32 = true, sint64 = true,
+bool = true,
 -- 64-bit fixed
-fixed64 = 1, sfixed64 = 1, double = 1,
+fixed64 = true, sfixed64 = true, double = true,
 -- Length-delimited
-string = 2, bytes = 2,
-message = 2, packed = 2,
--- Group (deprecated)
-group = 3, group_start = 3,
-group_end = 4,
+string = true, bytes = true,
 -- 32-bit fixed
-fixed32 = 5, sfixed32 = 5, float = 5,
+fixed32 = true, sfixed32 = true, float = true,
 }
-
-local function encode_msg(msg, fields)
-	local buf = new_buffer()
-
-	local off, len = pack_msg(buf, 0, 0, msg, fields)
-
-	local data = buf:pack(1, off, true)
-	buf:release()
-	assert(len == #data,
-		"Invalid packed length.  This shouldn't happen, there is a bug in the message packing code.")
-	return data
-end
-
-local function decode_msg(msg, data, off, fields)
-	return unpack_msg(data, off, #data, msg, fields)
-end
-
-local function dump_msg(msg, fields, depth)
-	local buf = new_buffer()
-
-	local off = fdump.message(buf, 0, msg, fields, depth or 0)
-
-	local data = buf:pack(1, off, true)
-	buf:release()
-	return data
-end
 
 local msg_tag = {}
 local function new_message(mt, data)
@@ -170,66 +132,37 @@ function _M.def(parent, name, ast)
 		local field = fields[i]
 		-- field rule to 'is_<rule>' mapping.
 		field['is_' .. field.rule] = true
-		-- get field wire_type
-		local ftype = field.ftype
-		local wire_type = wire_types[ftype]
-		if not wire_type then
-			-- field is a user type, it needs to be resolved.
-			field.need_resolve = true
-		else
+		-- check if the field is a basic type.
+		if basic_types[field.ftype] then
 			-- basic type
 			field.is_basic = true
+		else
+			-- field is a user type, it needs to be resolved.
+			field.need_resolve = true
 		end
 	end
 
-	-- Type pack/unpack functions.
+	-- Type methods
 	if is_group then
-		local pack = fpack.group
-		local unpack = funpack.group
-		local dump = fdump.group
-		-- encode group end tag.
-		local end_tag = encode_field_tag(ast.tag, wire_types.group_end)
-		-- group pack/unpack
-		mt.pack = function(buf, off, len, msg)
-			return pack(buf, off, len, msg, fields, end_tag)
-		end
-		mt.unpack = function(data, off, len, msg)
-			if not msg then
-				msg = new_msg(mt)
-			end
-			return unpack(data, off, len, msg, tags, end_tag)
-		end
-		mt.dump = function(buf, off, msg, depth)
-			return dump(buf, off, msg, fields, depth)
-		end
+		-- store group tag in metatable.
+		mt.tag = ast.tag
 	else
-		local pack = fpack.message
-		local unpack = funpack.message
-		local dump = fdump.message
-		-- message pack/unpack/dump
-			-- top-level message pack/unpack/dump functions
-		methods.Serialize = function(msg, format, depth)
-			if format == 'text' then
-				return dump_msg(msg, fields, depth)
-			else
-				return encode_msg(msg, fields)
+		-- top-level message Serialize/Parse functions
+		function methods:Serialize(format, depth)
+			format = format or 'binary'
+			local encode = mt.encode[format]
+			if not encode then
+				error("Unsupported serialization format: " .. format)
 			end
+			return encode(self, depth)
 		end
-		methods.Parse = function(msg, data, off)
-			return decode_msg(msg, data, off or 1, tags)
-		end
-			-- field pack/unpack/dump functions
-		mt.pack = function(buf, off, len, msg)
-			return pack(buf, off, len, msg, fields)
-		end
-		mt.unpack = function(data, off, len, msg)
-			if not msg then
-				msg = new_msg(mt)
+		function methods:Parse(data, format, off)
+			format = format or 'binary'
+			local decode = mt.decode[format]
+			if not decode then
+				error("Unsupported serialization format: " .. format)
 			end
-			return unpack(data, off, len, msg, tags)
-		end
-		mt.dump = function(buf, off, msg, depth)
-			return dump(buf, off, msg, fields, depth)
+			return decode(self, data, off or 1)
 		end
 	end
 
@@ -304,33 +237,18 @@ function _M.compile(node, mt, fields)
 		local field = fields[i]
 		-- packed arrays have a length
 		field.has_length = field.is_packed
-		-- get field tag & wire_type
+		-- get field tag
 		local tag = field.tag
-		local ftype = field.ftype
-		local wire_type = wire_types[ftype]
 		-- check if the field is a user type
 		local user_type_mt = field.user_type_mt
 		if user_type_mt then
-			-- get pack/unpack functions
-			field.pack = user_type_mt.pack
-			field.unpack = user_type_mt.unpack
-			field.dump = user_type_mt.dump
 			-- get new function from metatable.
 			field.new = user_type_mt.new
 			if field.is_group then
-				wire_type = wire_types.group_start
-				field.end_tag = encode_field_tag(tag, wire_types.group_end)
 				field.is_complex = true
 			elseif user_type_mt.is_enum then
 				field.is_enum = true
-				wire_type = wire_types.enum
-				if field.is_packed then
-					-- packed enum
-					field.pack = fpack.packed[field.pack]
-					field.unpack = funpack.packed[field.unpack]
-				end
 			else
-				wire_type = wire_types.message
 				field.has_length = true
 				field.is_message = true
 				field.is_complex = true
@@ -338,25 +256,15 @@ function _M.compile(node, mt, fields)
 		elseif field.is_packed then
 			-- packed basic type
 			field.is_basic = true
-			field.pack = fpack.packed[ftype]
-			field.unpack = funpack.packed[ftype]
 		else
 			-- basic type
 			field.is_basic = true
-			field.pack = fpack[ftype]
-			field.unpack = funpack[ftype]
 		end
 		-- if field is repeated, then create a new 'repeated' type for it.
 		if field.is_repeated then
 			field.new = new_repeated(field)
 			field.is_complex = true
 		end
-		-- create field tag_type.
-		local tag_type = encode_field_tag(tag, wire_type)
-		field.tag_type = tag_type
-		field.wire_type = wire_type
-		-- map field 'tag_type' -> field, for faster field decoding
-		tags[tag_type] = field
 		tags[tag] = field
 	end
 end
