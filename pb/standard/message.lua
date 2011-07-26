@@ -1,9 +1,10 @@
--- Copyright (c) 2010, Robert G. Jakabosky <bobby@sharedrealm.com> All rights reserved.
+-- Copyright (c) 2011, Robert G. Jakabosky <bobby@sharedrealm.com> All rights reserved.
 
 local error = error
 local assert = assert
 local tostring = tostring
 local setmetatable = setmetatable
+local rawget = rawget
 
 local mod_path = string.match(...,".*%.") or ''
 
@@ -106,13 +107,14 @@ function _M.def(parent, name, ast)
 	local is_group = (ast['.type'] == 'group')
 	local mt = {
 	name = name,
+	is_message = not is_group,
 	is_group = is_group,
 	fields = fields,
 	methods = methods,
 	tags = tags,
 	extensions = copy(ast.extensions),
 	__index = function(msg, name)
-		local data = msg['.data'] -- field data.
+		local data = rawget(msg, '.data') -- field data.
 		-- get field value.
 		local value = data[name]
 		-- field is already set, just return the value
@@ -138,7 +140,7 @@ function _M.def(parent, name, ast)
 		error("Invalid field:" .. name)
 	end,
 	__newindex = function(msg, name, value)
-		local data = msg['.data'] -- field data.
+		local data = rawget(msg, '.data') -- field data.
 		-- get field info.
 		local field = fields[name]
 		if not field then error("Invalid field:" .. name) end
@@ -150,7 +152,7 @@ function _M.def(parent, name, ast)
 		data[name] = value
 	end,
 	__tostring = function(msg)
-		local data = msg['.data'] -- field data.
+		local data = rawget(msg, '.data') -- field data.
 		local str = tostring(data)
 		return str:gsub('table', name)
 	end,
@@ -231,6 +233,68 @@ function _M.def(parent, name, ast)
 		end
 	end
 
+	-- common methods.
+		-- Clear()
+	function methods:Clear()
+		local data = rawget(msg, '.data') -- field data.
+		for i=1,#fields do
+			local field = fields[i]
+			data[field.name] = nil
+		end
+	end
+		-- IsInitialized()
+	function methods:IsInitialized()
+		local data = rawget(msg, '.data') -- field data.
+		for i=1,#fields do
+			local field = fields[i]
+			local name = field.name
+			local val = data[name]
+			if val then
+				-- check if group/message/repeated fields are intializied
+				if field.is_complex then
+					local init, errmsg = val:IsInitialized()
+					if not init then return init, errmsg end
+				end
+			elseif field.is_required then
+				return false, "Missing required field: " .. name
+			end
+		end
+		-- this group/message is intialized.
+		return true
+	end
+		-- MergeFrom()
+	function methods:MergeFrom(msg2)
+		local data = rawget(msg, '.data') -- field data.  This is for raw field access.
+		for i=1,#fields do
+			local field = fields[i]
+			local name = field.name
+			local val2 = msg2[name]
+			if val2 then
+				-- check if field is a group/message/repeated
+				if field.is_complex then
+					local val = data[name]
+					-- create new group/message if field is nil.
+					if not val then
+						val = field.new()
+						data[name] = val
+					end
+					-- merge sub group/message.
+					val:MergeFrom(val2)
+				else
+					-- simple value, just copy it.
+					data[name] = val2
+				end
+			end
+		end
+	end
+		-- CopyFrom()
+	function methods:CopyFrom(msg2)
+		-- first clear this message.
+		self:Clear()
+		-- then merge new data.
+		self:MergeFrom(msg2)
+	end
+
 	return mt
 end
 
@@ -245,11 +309,8 @@ function _M.compile(node, mt, fields)
 		local ftype = field.ftype
 		local wire_type = wire_types[ftype]
 		-- check if the field is a user type
-		local user_type = field.user_type
 		local user_type_mt = field.user_type_mt
-		if user_type then
-			-- message or group type.
-			local _type = user_type['.type']
+		if user_type_mt then
 			-- get pack/unpack functions
 			field.pack = user_type_mt.pack
 			field.unpack = user_type_mt.unpack
@@ -259,7 +320,8 @@ function _M.compile(node, mt, fields)
 			if field.is_group then
 				wire_type = wire_types.group_start
 				field.end_tag = encode_field_tag(tag, wire_types.group_end)
-			elseif _type == 'enum' then
+				field.is_complex = true
+			elseif user_type_mt.is_enum then
 				field.is_enum = true
 				wire_type = wire_types.enum
 				if field.is_packed then
@@ -271,6 +333,7 @@ function _M.compile(node, mt, fields)
 				wire_type = wire_types.message
 				field.has_length = true
 				field.is_message = true
+				field.is_complex = true
 			end
 		elseif field.is_packed then
 			-- packed basic type
@@ -286,6 +349,7 @@ function _M.compile(node, mt, fields)
 		-- if field is repeated, then create a new 'repeated' type for it.
 		if field.is_repeated then
 			field.new = new_repeated(field)
+			field.is_complex = true
 		end
 		-- create field tag_type.
 		local tag_type = encode_field_tag(tag, wire_type)

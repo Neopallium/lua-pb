@@ -140,7 +140,6 @@ local function resolve_fields(node, fields)
 		if field.need_resolve then
 			-- resolve user type
 			local user_type = resolve_type(node, field.ftype)
-			field.user_type = user_type
 			field.user_type_mt = pub_to_mt(user_type)
 			field.need_resolve = nil
 		end
@@ -241,6 +240,7 @@ function defines.enum(parent, name, ast)
 	local unpack = funpack.enum
 	local dump = fdump.enum
 	local mt = {
+	is_enum = true,
 	values = values,
 	-- field pack/unpack/dump functions
 	pack = function(buf, off, len, enum)
