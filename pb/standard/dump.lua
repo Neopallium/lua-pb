@@ -201,7 +201,7 @@ local function dump_repeated(buf, off, field, arr, depth)
 	return off
 end
 
-local function dump_unknown_fields(buf, off, unknowns, depth)
+function dump_unknown_fields(buf, off, unknowns, depth)
 	for i=1,#unknowns do
 		local field = unknowns[i]
 		-- indent

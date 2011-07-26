@@ -11,10 +11,10 @@ msg.email = "jdoe@example.com"
 pb.print(msg)
 
 print("Encode person message to binary.")
-local bin = pb.encode(msg)
+local bin = msg:Serialize()
 print("bytes =", #bin)
 
 print("Decode person message from binary.")
-local msg2 = pb.decode(person.Person(), bin)
+local msg2 = person.Person():Parse(bin)
 pb.print(msg2)
 

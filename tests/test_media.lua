@@ -1,7 +1,5 @@
 
 local pb = require"pb"
-local encode_msg = pb.encode
-local decode_msg = pb.decode
 
 local utils = require"utils"
 
@@ -93,7 +91,7 @@ check_MediaContent(msg)
 
 pb.print(msg)
 
-local bin = encode_msg(msg)
+local bin = msg:Serialize()
 
 print("--- encoded message: bytes", #bin)
 
@@ -102,7 +100,7 @@ assert(file:write(bin))
 assert(file:close())
 
 print("--- decode message")
-local msg1, off = decode_msg(MediaContent(), bin)
+local msg1, off = MediaContent():Parse(bin)
 
 check_MediaContent(msg1)
 print(utils.dump(msg1))

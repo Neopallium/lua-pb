@@ -1,14 +1,14 @@
 
 local pb = require"pb"
-local encode_msg = pb.encode
-local decode_msg = pb.decode
 
 local function encode_new_msg(create, ...)
-	return encode_msg(create(...))
+	local msg =create(...)
+	return msg:Serialize()
 end
 
 local function decode_new_msg(create, data)
-	return decode_msg(create(), data)
+	local msg =create()
+	return msg:Parse(data)
 end
 
 local bench = require"bench.bench"
@@ -122,6 +122,9 @@ print("Memory usage:", collectgarbage"count")
 --]]
 
 print("------------ encode same benchmark.")
+local function encode_msg(msg)
+	return msg:Serialize()
+end
 bench.memtest("encode same Media", 100, encode_msg, msg)
 bench.speedtest("encode same Media", loop, encode_msg, msg)
 
@@ -135,8 +138,8 @@ bench.speedtest("encode different Media", loop, encode_new_msg, create_media)
 print("Memory usage:", collectgarbage"count")
 
 print("------------ decode benchmark.")
-local bin = encode_msg(msg)
-local msg1, off = decode_msg(MediaContent(), bin)
+local bin = msg:Serialize()
+local msg1, off = MediaContent():Parse(bin)
 check_MediaContent(msg1)
 bench.memtest("decode Media", 100, decode_new_msg, MediaContent, bin)
 bench.speedtest("decode Media", loop, decode_new_msg, MediaContent, bin)

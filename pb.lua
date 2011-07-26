@@ -194,31 +194,21 @@ local function pb_loader(mod_name, ...)
 end
 ploaders[#ploaders + 1] = pb_loader
 
-function encode(msg, ...)
-	return msg:Serialize(...)
-end
-
 -- Raw Message for Raw decoding.
 local raw
 
-function decode(msg, ...)
-	if not msg then
-		if not raw then
-			-- need to load Raw message definition.
-			local proto = load_proto("message Raw {}")
-			raw = proto.Raw
-		end
-		-- Raw message decoding
-		msg = raw()
+function decode_raw(...)
+	if not raw then
+		-- need to load Raw message definition.
+		local proto = load_proto("message Raw {}")
+		raw = proto.Raw
 	end
+	-- Raw message decoding
+	local msg = raw()
 	return msg:Parse(...)
 end
 
-function dump(msg, ...)
-	return msg:Serialize('text', ...)
-end
-
 function _M.print(msg)
-	io.write(dump(msg))
+	io.write(msg:Serialize('text'))
 end
 
