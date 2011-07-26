@@ -71,10 +71,6 @@ end
 
 module(...)
 
--- export ZigZag functions.
-_M.zigzag64 = zigzag64
-_M.zigzag32 = zigzag32
-
 ----------------------------------------------------------------------------------
 --
 --  Pack code.
@@ -89,63 +85,65 @@ local function pack_varint32(num)
 	return char(varint_next_byte(num))
 end
 
-function varint64(buf, off, len, num)
+local basic = {
+varint64 = function(buf, off, len, num)
 	return append(buf, off, len, pack_varint64(num))
-end
-function varint32(buf, off, len, num)
+end,
+varint32 = function(buf, off, len, num)
 	return append(buf, off, len, pack_varint32(num))
-end
+end,
 
-function svarint64(buf, off, len, num)
+svarint64 = function(buf, off, len, num)
 	return append(buf, off, len, pack_varint64(zigzag64(num)))
-end
+end,
 
-function svarint32(buf, off, len, num)
+svarint32 = function(buf, off, len, num)
 	return append(buf, off, len, pack_varint32(zigzag32(num)))
-end
+end,
 
-function fixed64(buf, off, len, num)
+fixed64 = function(buf, off, len, num)
 	return append(buf, off, len, spack('<I8', num))
-end
+end,
 
-function sfixed64(buf, off, len, num)
+sfixed64 = function(buf, off, len, num)
 	return append(buf, off, len, spack('<i8', num))
-end
+end,
 
-function double(buf, off, len, num)
+double = function(buf, off, len, num)
 	return append(buf, off, len, spack('<d', num))
-end
+end,
 
-function fixed32(buf, off, len, num)
+fixed32 = function(buf, off, len, num)
 	return append(buf, off, len, spack('<I4', num))
-end
+end,
 
-function sfixed32(buf, off, len, num)
+sfixed32 = function(buf, off, len, num)
 	return append(buf, off, len, spack('<i4', num))
-end
+end,
 
-function float(buf, off, len, num)
+float = function(buf, off, len, num)
 	return append(buf, off, len, spack('<f', num))
-end
+end,
 
-function string(buf, off, len, str)
+string = function(buf, off, len, str)
 	off = off + 1
 	local len_data = pack_varint32(#str)
 	buf[off] = len_data
 	off = off + 1
 	buf[off] = str
 	return off, len + #len_data + #str
-end
+end,
+}
 
 --
 -- packed repeated fields
 --
-packed = setmetatable({},{
+local packed = setmetatable({},{
 __index = function(tab, ftype)
 	local fpack
 	if type(ftype) == 'string' then
 		-- basic type
-		fpack = _M[ftype]
+		fpack = basic[ftype]
 	else
 		-- complex type (Enums)
 		fpack = ftype
@@ -159,14 +157,18 @@ __index = function(tab, ftype)
 end,
 })
 
-function encode_field_tag(tag, wire_type)
+local function encode_field_tag(tag, wire_type)
 	local tag_type = (tag * 8) + wire_type
 	return pack_varint32(tag_type)
 end
+_M.encode_field_tag = encode_field_tag
 
 local pack_fields
 local pack_unknown_fields
 
+local fixed64 = basic.fixed64
+local fixed32 = basic.fixed32
+local string = basic.string
 local wire_pack = {
 [0] = function(buf, off, len, val)
 	return append(buf, off, len, pack_varint64(val))
@@ -249,7 +251,7 @@ local function pack_repeated(buf, off, len, field, arr)
 	return off, len
 end
 
-function pack_unknown_fields(buf, off, len, unknowns)
+local function pack_unknown_fields(buf, off, len, unknowns)
 	for i=1,#unknowns do
 		local field = unknowns[i]
 		local wire = field.wire
@@ -305,7 +307,7 @@ local function pack_fields(buf, off, len, msg, fields)
 	return off, len
 end
 
-function group(buf, off, len, msg, fields, end_tag)
+local function group(buf, off, len, msg, fields, end_tag)
 	local total = 0
 	local len
 	-- Pack group fields.
@@ -314,7 +316,7 @@ function group(buf, off, len, msg, fields, end_tag)
 	off, len = append(buf, off, len, end_tag)
 end
 
-function message(buf, off, len, msg, fields)
+local function message(buf, off, len, msg, fields)
 	-- Pack message fields.
 	return pack_fields(buf, off, len, msg, fields)
 end
@@ -338,10 +340,10 @@ sint64 = "svarint64",
 bytes  = "string",
 }
 for k,v in pairs(map_types) do
-	_M[k] = _M[v]
+	basic[k] = basic[v]
 end
 
-wire_types = {
+local wire_types = {
 -- Varint types
 int32 = 0, int64 = 0,
 uint32 = 0, uint64 = 0,
@@ -358,6 +360,7 @@ group_end = 4,
 -- 32-bit fixed
 fixed32 = 5, sfixed32 = 5, float = 5,
 }
+_M.wire_types = wire_types
 
 local register_fields
 
@@ -367,7 +370,7 @@ local function get_type_pack(mt)
 	if not pack then
 		-- create a pack function for this type.
 		if mt.is_enum then
-			local pack_enum = enum
+			local pack_enum = basic.enum
 			local values = mt.values
 			pack = function(buf, off, len, enum)
 				return pack_enum(buf, off, len, values[enum])
@@ -419,7 +422,7 @@ function register_fields(mt, fields)
 		elseif field.is_packed then
 			field.pack = packed[ftype]
 		else
-			field.pack = _M[ftype]
+			field.pack = basic[ftype]
 		end
 		-- create field tag_type.
 		local tag_type = encode_field_tag(tag, wire_type)

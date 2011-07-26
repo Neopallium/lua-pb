@@ -67,10 +67,6 @@ end
 
 module(...)
 
--- export un-ZigZag functions.
-_M.unzigzag64 = unzigzag64
-_M.unzigzag32 = unzigzag32
-
 ----------------------------------------------------------------------------------
 --
 --  Unpack code.
@@ -103,53 +99,54 @@ local function unpack_varint32(data, off)
 	return num, off + 1
 end
 
-_M.varint64 = unpack_varint64
-_M.varint32 = unpack_varint32
-
-function svarint64(data, off)
+local basic = {
+varint64 = unpack_varint64,
+varint32 = unpack_varint32,
+svarint64 = function(data, off)
 	local num
 	num, off = unpack_varint64(data, off)
 	return unzigzag64(num), off
-end
+end,
 
-function svarint32(data, off)
+svarint32 = function(data, off)
 	local num
 	num, off = unpack_varint32(data, off)
 	return unzigzag32(num), off
-end
+end,
 
-function fixed64(data, off)
+fixed64 = function(data, off)
 	return sunpack('<I8', data, off)
-end
+end,
 
-function sfixed64(data, off)
+sfixed64 = function(data, off)
 	return sunpack('<i8', data, off)
-end
+end,
 
-function double(data, off)
+double = function(data, off)
 	return sunpack('<d', data, off)
-end
+end,
 
-function fixed32(data, off)
+fixed32 = function(data, off)
 	return sunpack('<I4', data, off)
-end
+end,
 
-function sfixed32(data, off)
+sfixed32 = function(data, off)
 	return sunpack('<i4', data, off)
-end
+end,
 
-function float(data, off)
+float = function(data, off)
 	return sunpack('<f', data, off)
-end
+end,
 
-function string(data, off)
+string = function(data, off)
 	local len
 	-- decode string length.
 	len, off = unpack_varint32(data, off)
 	-- decode string data.
 	local end_off = off + len
 	return data:sub(off, end_off - 1), end_off
-end
+end,
+}
 
 local function decode_field_tag(data, off)
 	local tag_type
@@ -183,6 +180,9 @@ local function try_unpack_unknown_message(data, off, len)
 	return msg, off
 end
 
+local fixed64 = basic.fixed64
+local fixed32 = basic.fixed32
+local string = basic.string
 local wire_unpack = {
 [0] = function(data, off, len, tag, unknowns)
 	local val
@@ -262,12 +262,12 @@ end
 --
 -- packed repeated fields
 --
-packed = setmetatable({},{
+local packed = setmetatable({},{
 __index = function(tab, ftype)
 	local funpack
 	if type(ftype) == 'string' then
 		-- basic type
-		funpack = _M[ftype]
+		funpack = basic[ftype]
 	else
 		-- complex type (Enums)
 		funpack = ftype
@@ -378,7 +378,7 @@ local function unpack_fields(data, off, len, msg, tags, is_group)
 	return msg, off
 end
 
-function group(data, off, len, msg, tags, end_tag)
+local function group(data, off, len, msg, tags, end_tag)
 	-- Unpack group fields.
 	msg, off = unpack_fields(data, off, len, msg, tags, true)
 	-- validate 'End group' tag
@@ -388,7 +388,7 @@ function group(data, off, len, msg, tags, end_tag)
 	return msg, off
 end
 
-function message(data, off, len, msg, tags)
+local function message(data, off, len, msg, tags)
 	-- Unpack message fields.
 	return unpack_fields(data, off, len, msg, tags, false)
 end
@@ -412,7 +412,7 @@ sint64 = "svarint64",
 bytes  = "string",
 }
 for k,v in pairs(map_types) do
-	_M[k] = _M[v]
+	basic[k] = basic[v]
 end
 
 local register_fields
@@ -423,7 +423,7 @@ local function get_type_unpack(mt)
 	if not unpack then
 		-- create a unpack function for this type.
 		if mt.is_enum then
-			local unpack_enum = enum
+			local unpack_enum = basic.enum
 			local values = mt.values
 			unpack = function(data, off, len, enum)
 				local enum
@@ -486,7 +486,7 @@ function register_fields(mt)
 		elseif field.is_unpacked then
 			field.unpack = packed[ftype]
 		else
-			field.unpack = _M[ftype]
+			field.unpack = basic[ftype]
 		end
 		-- create field tag_type.
 		local tag_type = encode_field_tag(tag, wire_type)

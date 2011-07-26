@@ -75,7 +75,11 @@ function _M.def(parent, name, ast)
 	methods = methods,
 	tags = tags,
 	extensions = copy(ast.extensions),
-	__index = function(msg, name)
+	-- hid this metatable.
+	__metatable = false,
+	}
+
+	function mt.__index(msg, name)
 		local data = rawget(msg, '.data') -- field data.
 		-- get field value.
 		local value = data[name]
@@ -100,8 +104,8 @@ function _M.def(parent, name, ast)
 			return mt
 		end
 		error("Invalid field:" .. name)
-	end,
-	__newindex = function(msg, name, value)
+	end
+	function mt.__newindex(msg, name, value)
 		local data = rawget(msg, '.data') -- field data.
 		-- get field info.
 		local field = fields[name]
@@ -112,15 +116,13 @@ function _M.def(parent, name, ast)
 			value = new(value)
 		end
 		data[name] = value
-	end,
-	__tostring = function(msg)
+	end
+	function mt.__tostring(msg)
 		local data = rawget(msg, '.data') -- field data.
 		local str = tostring(data)
 		return str:gsub('table', name)
-	end,
-	-- hid this metatable.
-	__metatable = false,
-	}
+	end
+
 	-- create message contructor
 	local function new_msg(data)
 		return new_message(mt, data)
@@ -169,7 +171,7 @@ function _M.def(parent, name, ast)
 	-- common methods.
 		-- Clear()
 	function methods:Clear()
-		local data = rawget(msg, '.data') -- field data.
+		local data = rawget(self, '.data') -- field data.
 		for i=1,#fields do
 			local field = fields[i]
 			data[field.name] = nil
@@ -177,7 +179,7 @@ function _M.def(parent, name, ast)
 	end
 		-- IsInitialized()
 	function methods:IsInitialized()
-		local data = rawget(msg, '.data') -- field data.
+		local data = rawget(self, '.data') -- field data.
 		for i=1,#fields do
 			local field = fields[i]
 			local name = field.name
@@ -197,7 +199,7 @@ function _M.def(parent, name, ast)
 	end
 		-- MergeFrom()
 	function methods:MergeFrom(msg2)
-		local data = rawget(msg, '.data') -- field data.  This is for raw field access.
+		local data = rawget(self, '.data') -- field data.  This is for raw field access.
 		for i=1,#fields do
 			local field = fields[i]
 			local name = field.name

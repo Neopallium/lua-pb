@@ -74,62 +74,64 @@ module(...)
 --
 ----------------------------------------------------------------------------------
 
+local basic = {
 -- varint types
-function int32(buf, off, val)
+int32 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
-end
-function int64(buf, off, val)
+end,
+int64 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
-end
-function sint32(buf, off, val)
+end,
+sint32 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
-end
-function sint64(buf, off, val)
+end,
+sint64 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
-end
-function uint32(buf, off, val)
+end,
+uint32 = function(buf, off, val)
 	return append(buf, off, sformat("%u", val))
-end
-function uint64(buf, off, val)
+end,
+uint64 = function(buf, off, val)
 	return append(buf, off, sformat("%u", val))
-end
-function bool(buf, off, val)
+end,
+bool = function(buf, off, val)
 	return append(buf, off, (val == 0) and "false" or "true")
-end
-function enum(buf, off, val)
+end,
+enum = function(buf, off, val)
 	return append(buf, off, val)
-end
+end,
 -- 64-bit fixed
-function fixed64(buf, off, val)
+fixed64 = function(buf, off, val)
 	return append(buf, off, sformat("%u", val))
-end
-function sfixed64(buf, off, val)
+end,
+sfixed64 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
-end
-function double(buf, off, val)
+end,
+double = function(buf, off, val)
 	return append(buf, off, tostring(val))
-end
+end,
 -- Length-delimited
-function string(buf, off, val)
+string = function(buf, off, val)
 	off = append(buf, off, '"')
 	off = append(buf, off, safe_string(val))
 	return append(buf, off, '"')
-end
-function bytes(buf, off, val)
+end,
+bytes = function(buf, off, val)
 	off = append(buf, off, '"')
 	off = append(buf, off, safe_string(val))
 	return append(buf, off, '"')
-end
+end,
 -- 32-bit fixed
-function fixed32(buf, off, val)
+fixed32 = function(buf, off, val)
 	return append(buf, off, sformat("%u", val))
-end
-function sfixed32(buf, off, val)
+end,
+sfixed32 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
-end
-function float(buf, off, val)
+end,
+float = function(buf, off, val)
 	return append(buf, off, sformat("%.8g", val))
-end
+end,
+}
 
 local dump_fields
 local dump_unknown_fields
@@ -183,7 +185,7 @@ local function dump_field(buf, off, field, val, depth)
 			off = append(buf, off, "}")
 		end
 	else
-		dump = _M[field.ftype]
+		dump = basic[field.ftype]
 		off = append(buf, off, ": ")
 		off = dump(buf, off, val)
 	end
@@ -199,7 +201,7 @@ local function dump_repeated(buf, off, field, arr, depth)
 	return off
 end
 
-function dump_unknown_fields(buf, off, unknowns, depth)
+local function dump_unknown_fields(buf, off, unknowns, depth)
 	for i=1,#unknowns do
 		local field = unknowns[i]
 		-- indent
@@ -241,12 +243,12 @@ local function dump_fields(buf, off, msg, fields, depth)
 	return off
 end
 
-function group(buf, off, msg, fields, depth)
+local function group(buf, off, msg, fields, depth)
 	-- dump group fields.
 	return dump_fields(buf, off, msg, fields, depth)
 end
 
-function message(buf, off, msg, fields, depth)
+local function message(buf, off, msg, fields, depth)
 	-- dump message fields.
 	return dump_fields(buf, off, msg, fields, depth)
 end
@@ -259,7 +261,7 @@ local function get_type_dump(mt)
 	if not dump then
 		-- create a dump function for this type.
 		if mt.is_enum then
-			dump = enum
+			dump = basic.enum
 		elseif mt.is_message then
 			local fields = mt.fields
 			dump = function(buf, off, msg, depth)

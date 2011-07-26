@@ -2,6 +2,7 @@
 
 local concat = table.concat
 local setmetatable = setmetatable
+local rawset = rawset
 
 local repeated_tag = {}
 local function new_message_repeated(field)
