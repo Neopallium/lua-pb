@@ -177,11 +177,7 @@ function _M.def(parent, name, ast)
 			-- Clear message before parsing it.
 			self:Clear()
 			-- Merge message data into empty message.
-			local msg, off = self:Merge(data, format, off)
-			-- validate message to make sure all required fields are set.
-			local init, errmsg = self:IsInitialized()
-			if not init then return init, errmsg, msg, off end
-			return msg, off
+			return self:Merge(data, format, off)
 		end
 	end
 
