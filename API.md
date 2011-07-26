@@ -38,18 +38,18 @@ Merges serialized protocol buffer data into this message.
 
 When we find a field in `data` that is already present
 in this message:
-* If it`s a `repeated` field, we append to the end of our list.
-* Else, if it`s a scalar, we overwrite our field.
-* Else, (it`s a nonrepeated composite), we recursively merge 
+*   If it`s a `repeated` field, we append to the end of our list.
+*   Else, if it`s a scalar, we overwrite our field.
+*   Else, (it`s a nonrepeated composite), we recursively merge 
 into the existing composite.
 
 Args:
-* data: A serialized message encode in `format`.
-* format: The optional encoding format of `data`.  (defaults to 'binary').
-* off: Optional offset into `data`.  (defaults to 1)
+*   data: A serialized message encode in `format`.
+*   format: The optional encoding format of `data`.  (defaults to 'binary').
+*   off: Optional offset into `data`.  (defaults to 1)
 
 Formats:
-* binary
+*   binary
 
 	local off = msg:Merge(data, 'text')
 
@@ -62,12 +62,12 @@ Like MergeFromString(), except we clear the object first.
 Serializes the protocol message to a string encoding it using `format`.
 
 Args:
-* format: The optional serialization format.  (defaults to 'binary').
-* depth: Optional depth for indenting.  (defaults to 0)
+*   format: The optional serialization format.  (defaults to 'binary').
+*   depth: Optional depth for indenting.  (defaults to 0)
 
 Formats:
-* binary
-* text
+*   binary
+*   text
 
 	local bin, errmsg = msg:Serialize('text')
 
