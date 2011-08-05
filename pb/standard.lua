@@ -264,6 +264,13 @@ function defines.enum(parent, name, ast)
 	local mt = {
 	is_enum = true,
 	values = values,
+	new = function(val)
+		if type(val) == 'number' then
+			val = values[val]
+			assert(val, "Invalid ENUM value.")
+		end
+		return val
+	end,
 	}
 
 	-- define public interface.
