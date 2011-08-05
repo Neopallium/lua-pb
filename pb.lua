@@ -38,7 +38,7 @@ if package and package.path then
 	for path in package.path:gmatch(path_match) do
 		-- don't include "*/init.lua" paths
 		if not path:match("init.lua$") then
-			path = path:gsub('\.lua$','\.proto')
+			path = path:gsub('%.lua$','.proto')
 			default_proto_path = default_proto_path .. path .. ';'
 		end
 	end
