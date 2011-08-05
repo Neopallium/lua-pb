@@ -11,6 +11,10 @@ local MSEC_PER_SEC = 1000
 local USEC_PER_SEC = MSEC_PER_SEC * 1000
 local NSEC_PER_SEC = USEC_PER_SEC * 1000
 
+if jit then
+	--jit.opt.start("maxsnap=5000", "maxside=1000", "maxtrace=4000", "maxrecord=8000", "maxmcode=4096")
+end
+
 local TEST = false
 
 local loop_multipler = 100

@@ -11,10 +11,6 @@ require"pb"
 
 local utils = require"utils"
 
-if jit then
-	jit.opt.start("maxsnap=5000", "maxside=1000", "maxtrace=4000", "maxrecord=8000", "maxmcode=4096")
-end
-
 local MediaContentHolder = require"protos.media"
 
 local sample = {
