@@ -26,15 +26,25 @@ function mt:truncate(off)
 	end
 end
 
+local cache
 function mt:release()
-	-- clear buffer
-	self:truncate(1)
-	-- TODO: buffer pool
+	-- don't cache large buffers.
+	if #self < (32 * 1024) then
+		-- clear buffer
+		self:truncate(1)
+		-- cheap buffer pool
+		cache = self
+	end
 end
 
 module(...)
 
 function new()
+	if cache then
+		local self = cache
+		cache = nil
+		return self
+	end
 	return setmetatable({}, mt)
 end
 
