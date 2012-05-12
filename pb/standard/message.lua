@@ -110,10 +110,12 @@ function _M.def(parent, name, ast)
 		-- get field info.
 		local field = fields[name]
 		if not field then error("Invalid field:" .. name) end
-		-- check if field is a message/group
-		local new = field.new
-		if new then
-			value = new(value)
+		if value then
+			-- check if field is a message/group
+			local new = field.new
+			if new then
+				value = new(value)
+			end
 		end
 		data[name] = value
 	end
