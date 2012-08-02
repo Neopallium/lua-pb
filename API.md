@@ -103,3 +103,14 @@ Serializes the protocol message to a binary string.
 This method is similar to SerializeToString but doesn`t check if the
 message is initialized.
 
+# Access unknown fields
+
+A message will store all unknown fields in field 'unknown_fields'
+
+```lua
+local unknowns = msg.unknown_fields
+for i,v in ipairs(unknowns) do
+	print("idx =", i, "tag =", v.tag, "wiretype =", v.wire, "value =", v.value)
+end
+```
+
