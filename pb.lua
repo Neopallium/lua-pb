@@ -25,6 +25,7 @@ local assert = assert
 local sformat = string.format
 local print = print
 local ploaders = package.loaders
+local m_require = require
 
 local dir_sep = package.config:sub(1,1)
 local path_sep = package.config:sub(3,3)
@@ -47,8 +48,6 @@ else
 end
 
 local mod_name = ...
-
-local parser = require(mod_name .. ".proto.parser")
 
 -- backend cache.
 local backends = {}
@@ -111,16 +110,13 @@ function set_default_backend(name)
 end
 
 local loading = "loading...."
-function load_proto(text, name, backend, require)
+function load_proto_ast(ast, name, backend, require)
 	local b = get_backend(backend)
 
 	-- Use sentinel mark in cache. (to detect import loops).
 	if name then
 		b.cache[name] = loading
 	end
-
-	-- parse .proto into AST tree
-	local ast = parser.parse(text)
 
 	-- process imports
 	local imports = ast.imports
@@ -144,6 +140,18 @@ function load_proto(text, name, backend, require)
 	end
 
 	return proto
+end
+
+local proto_parser
+function load_proto(text, name, backend, require)
+	-- dynamically load proto parser.
+	if not proto_parser then
+		proto_parser = m_require(mod_name .. ".proto.parser")
+	end
+	-- parse .proto into AST tree
+	local ast = proto_parser.parse(text)
+
+	return load_proto_ast(ast, name, backend, require)
 end
 
 function require(name, backend)
