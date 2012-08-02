@@ -1,6 +1,5 @@
 
 local pb = require"pb"
-local decode_msg = pb.decode
 
 if #arg < 3 then
 	print("Usage: " .. arg[0] .. " <proto definition> <message type> <protobuf encoded message file>")
@@ -15,7 +14,7 @@ local bin = assert(f:read('*a'))
 assert(f:close())
 
 local off
-msg, off = decode_msg(msg, bin)
+msg, off = msg:Parse(bin)
 
 pb.print(msg)
 

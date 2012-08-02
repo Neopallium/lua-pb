@@ -10,7 +10,7 @@ local f = assert(io.open(arg[1]))
 local bin = assert(f:read('*a'))
 assert(f:close())
 
-local msg, off = pb.decode_raw( bin)
+local msg, off = pb.decode_raw(bin)
 
 pb.print(msg)
 
