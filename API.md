@@ -78,6 +78,10 @@ local off = msg:Merge(data, 'text')
 
 Like MergeFromString(), except we clear the object first.
 
+## ParsePartial(data, format, off)
+
+Like Parse(), but accepts messages that are missing required fields. 
+
 ## Serialize(format, depth)
 
 Serializes the protocol message to a string encoding it using `format`.

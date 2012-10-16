@@ -175,11 +175,22 @@ function _M.def(parent, name, ast)
 			-- now serialize message
 			return self:SerializePartial(format, depth)
 		end
-		function methods:Parse(data, format, off)
+		function methods:ParsePartial(data, format, off)
 			-- Clear message before parsing it.
 			self:Clear()
 			-- Merge message data into empty message.
 			return self:Merge(data, format, off)
+		end
+		function methods:Parse(data, format, off)
+			-- Clear message before parsing it.
+			self:Clear()
+			-- Merge message data into empty message.
+			local msg, off_err = self:Merge(data, format, off)
+			if not msg then return msg, off_err end
+			-- validate message.
+			local init, errmsg = self:IsInitialized()
+			if not init then return init, errmsg end
+			return msg, off_err
 		end
 	end
 
