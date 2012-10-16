@@ -61,7 +61,7 @@ end
 
 local function get_backend(name)
 	name = name or default_backend
-	backend = backends[name]
+	local backend = backends[name]
 	if not backend then
 		-- load new backend
 		local mod = require(mod_name .. '.' .. name)
