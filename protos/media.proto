@@ -6,6 +6,11 @@ option java_package = "serializers.protobuf";
 option java_outer_classname = "MediaContentHolder";
 option optimize_for = SPEED;
 
+/*
+ * This is a test of C-style comments.
+ */
+/* This is a test of C-style comments. */
+
 message Image {
   required string uri = 1;      //url to the thumbnail
   optional string title = 2;    //used in the html ALT

@@ -144,7 +144,7 @@ IDENTIFIER = ident
 
 STRING = quote * ((1 - S'"\n\r\\') + (P'\\' * 1))^0 * (quote + error"unfinished string")
 
-COMMENT = P"//" * (1 - P"\n")^0
+COMMENT = (P"//" * (1 - P"\n")^0) + (P"/*" * (1 - P"*/")^0 * P"*/")
 
 -------------------------------------------------------------------------------
 ------------------------- Other patterns
