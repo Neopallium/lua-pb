@@ -1,0 +1,16 @@
+id: "fh4auihrn"
+ip: "ABC"
+url: "http://example.org"
+detected_language: "en"
+adslot {
+  id: 1
+  width: 300
+  height: 250
+  excluded_attribute: 48
+  matching_ad_data {
+    adgroup_id: 3563572695
+  }
+}
+google_user_id: "MThCWVRFRVhDSEFOR0VVU0lE"
+hosted_match_data: "NATIVE"
+geo_criteria_id: 1006886
