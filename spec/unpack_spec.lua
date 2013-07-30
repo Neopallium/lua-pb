@@ -4,6 +4,7 @@ describe('pb.standard.unpack', function()
   before(function()
     pb       = require 'pb'
     repeated = require 'spec.fixtures.repeated'
+    repeated_packed = require 'spec.fixtures.repeated_packed'
   end)
 
   it('should unpack repeated fields', function()
@@ -14,5 +15,9 @@ describe('pb.standard.unpack', function()
   end)
 
   it('should unpack repeated packed fields', function()
+    local data  = io.open('./spec/fixtures/repeated_packed.bin', 'r'):read('*all')
+
+    local thing = repeated_packed.Thing():Parse(data)
+    assert_tables(thing.parts, { 77, 999 })
   end)
 end)
