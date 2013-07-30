@@ -1,0 +1,3 @@
+message Thing {
+  repeated int32 parts = 4;
+}
