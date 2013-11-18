@@ -273,7 +273,7 @@ local function pack_fields(buf, off, len, msg, fields)
 		local field = fields[i]
 		local val = data[field.name]
 		if val then
-			if val ~= field.default then
+			if val ~= field.default or field.is_required then
 				if field.is_repeated then
 					if field.is_packed then
 						-- pack length-delimited field
