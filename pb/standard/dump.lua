@@ -27,6 +27,8 @@ local setmetatable = setmetatable
 local type = type
 local sformat = string.format
 local char = string.char
+local sbyte = string.byte
+local tonumber = tonumber
 
 local mod_path = string.match(...,".*%.") or ''
 
@@ -80,7 +82,15 @@ int32 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
 end,
 int64 = function(buf, off, val)
-	return append(buf, off, sformat("%d", val))
+	if type(val) == "string" then
+		off = append(buf, off, "0x")
+		for i = 1, #val do
+			off = append(buf, off, tostring(tonumber(sbyte(val:sub(i,i)), 16)))
+		end
+		return off
+	else
+		return append(buf, off, sformat("%d", val))
+	end
 end,
 sint32 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
