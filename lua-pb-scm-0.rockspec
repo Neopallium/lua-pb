@@ -7,7 +7,7 @@ source	= {
 }
 description	= {
 	summary	= "Lua Protocol Buffers",
-	detailed	= '',
+	detailed	= 'Lua implementation of the Google Protocol Buffers serialization format',
 	homepage	= 'https://github.com/Neopallium/lua-pb',
 	license	= 'MIT',
 	maintainer = "Robert G. Jakabosky",
