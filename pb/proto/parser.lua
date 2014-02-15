@@ -22,6 +22,7 @@ local lower = string.lower
 local tremove = table.remove
 local tsort = table.sort
 local assert = assert
+local type = type
 
 local mod_path = string.match(...,".*%.") or ''
 
