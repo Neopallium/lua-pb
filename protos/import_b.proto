@@ -1,0 +1,6 @@
+package test.import;
+
+message BMessage {
+  required int32 ret = 1;
+}
+

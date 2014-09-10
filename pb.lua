@@ -26,6 +26,7 @@ local sformat = string.format
 local print = print
 local ploaders = package.loaders
 local m_require = require
+local pairs = pairs
 
 local dir_sep = package.config:sub(1,1)
 local path_sep = package.config:sub(3,3)
@@ -171,24 +172,34 @@ function require(name, backend)
 	return load_proto(text, name, backend, require)
 end
 
+local function new_node(name, parent, default)
+	local node = parent[name]
+	if not node then
+		-- create missing node.
+		node = default or {}
+		parent[name] = node
+	end
+	return node
+end
+
 local function install_proto(mod_name, proto)
 	local parent = _G
 	local mod_path = mod_name:match("^(.*)%.[^.]*$")
 	if mod_path then
 		-- build module path nodes
 		for part in mod_path:gmatch("([^.]+)") do
-			local node = parent[part]
-			if not node then
-				-- create missing node.
-				node = {}
-				parent[part] = node
-			end
-			parent = node
+			parent = new_node(part, parent)
 		end
 		-- remove package prefix from module name
 		mod_name = mod_name:sub(#mod_path+2)
 	end
-	parent[mod_name] = proto
+	local node = new_node(mod_name, parent, proto)
+	if node ~= proto then
+		-- need to copy Messages from new proto to package.
+		for name, msg in pairs(proto) do
+			node[name] = msg
+		end
+	end
 	return proto
 end
 

@@ -1,0 +1,10 @@
+// test import
+
+package test.import.sub;
+import "protos.import_b.proto";
+
+message AMessage {
+  required string user = 1;
+  optional string pass = 2;
+}
+
