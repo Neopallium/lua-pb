@@ -74,20 +74,33 @@ end
 -- pre-load default backend
 get_backend(default_backend)
 
-local function find_proto(name, search_path)
-	local err_list = ''
-	-- convert dotted name to directory path.
-	name = name:gsub('%.', dir_sep)
-	-- try each path in search path.
-	for path in search_path:gmatch(path_match) do
-		local fname = path:gsub(path_mark, name)
-		local file, err = fopen(fname)
-		-- return opened file
-		if file then return file end
-		-- append error and continue
-		err_list = err_list .. sformat("\n\tno file %q", fname)
+local find_proto
+if package.searchpath then
+	-- Use Lua's 'package.searchpath' to find .proto files.
+	local psearchpath = package.searchpath
+	function find_proto(name, search_path)
+		local fname, err = psearchpath(name, search_path)
+		if fname then
+			return fopen(fname)
+		end
+		return nil, err
 	end
-	return nil, err_list
+else
+	function find_proto(name, search_path)
+		local err_list = ''
+		-- convert dotted name to directory path.
+		name = name:gsub('%.', dir_sep)
+		-- try each path in search path.
+		for path in search_path:gmatch(path_match) do
+			local fname = path:gsub(path_mark, name)
+			local file, err = fopen(fname)
+			-- return opened file
+			if file then return file end
+			-- append error and continue
+			err_list = err_list .. sformat("\n\tno file %q", fname)
+		end
+		return nil, err_list
+	end
 end
 
 local function proto_file_to_name(file)
