@@ -34,7 +34,7 @@ local path_mark = package.config:sub(5,5)
 local path_match = "([^" .. path_sep .. "]*)" .. path_sep
 
 local default_proto_path = ''
--- Use modified 'package.path' as search path for .poto files.
+-- Use modified 'package.path' as search path for .proto files.
 if package and package.path then
 	-- convert '.lua' -> '.proto'
 	for path in package.path:gmatch(path_match) do
