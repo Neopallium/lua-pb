@@ -31,7 +31,7 @@ local pairs = pairs
 local dir_sep = package.config:sub(1,1)
 local path_sep = package.config:sub(3,3)
 local path_mark = package.config:sub(5,5)
-local path_match = "([^" .. path_sep .. "]*)" .. path_sep
+local path_match = "([^" .. path_sep .. "]+)"
 
 local default_proto_path = ''
 -- Use modified 'package.path' as search path for .proto files.
