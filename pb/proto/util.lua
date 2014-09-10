@@ -31,8 +31,26 @@ local lpeg = require 'lpeg'
 -- imported functions
 local P, V = lpeg.P, lpeg.V
 
+-- escape control characters in error messages.
+local escapes = {
+ ['\n'] = '\\n',
+ ['\r'] = '\\r',
+ ['"']  = '\\"',
+ ['\\'] = '\\\\',
+}
+for b=0,31 do
+	local c = string.char(b)
+	if not escapes[c] then
+		escapes[c] = '\\' .. string.format('%03d', b)
+	end
+end
+
 -- module declaration
 module(...)
+
+function show_text(text)
+	return text:gsub('.', escapes)
+end
 
 function listOf(patt, sep)
 	patt, sep = P(patt), P(sep)

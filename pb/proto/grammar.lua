@@ -18,7 +18,6 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 -- THE SOFTWARE.
 
-local print = print
 local upper = string.upper
 local sfind = string.find
 
@@ -164,7 +163,7 @@ function check(input)
     finish = finish or #input
     
     local line = scanner.lines(input:sub(1, result))
-    local vicinity = input:sub(init + 1, finish)
+    local vicinity = util.show_text(input:sub(init + 1, finish))
     
     return false, 'Syntax error at line '..line..', near "'..vicinity..'"'
   end

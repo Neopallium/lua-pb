@@ -21,7 +21,10 @@
 local _G = _G
 local upper = string.upper
 
+local mod_path = string.match(...,".*%.") or ''
+
 local lp = require"lpeg"
+local util = require(mod_path .. 'util')
 local P=lp.P
 local S=lp.S
 local R=lp.R
@@ -68,7 +71,7 @@ function error(msg)
 	return function (subject, i)
 		local line = lines(subject:sub(1,i))
 		_G.error('Lexical error in line '..line..', near "'
-			..(subject:sub(i-10,i)):gsub('\n','EOL').. '": ' .. msg, 0)
+			.. util.show_text(subject:sub(i-10,i)).. '": ' .. msg, 0)
 	end
 end
 
