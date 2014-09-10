@@ -76,12 +76,12 @@ module(...)
 local function unpack_varint64(data, off)
 	local b = data:byte(off)
 	local num = band(b, 0x7F)
-	local boff = 7
+	local boff = 128
 	while b >= 128 do
 		off = off + 1
 		b = data:byte(off)
-		num = bor(num, lshift(band(b, 0x7F), boff))
-		boff = boff + 7
+		num = num + (band(b, 0x7F) * boff)
+		boff = boff * 128
 	end
 	return num, off + 1
 end
