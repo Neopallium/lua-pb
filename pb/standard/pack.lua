@@ -1,4 +1,4 @@
--- Copyright (c) 2010-2011 by Robert G. Jakabosky <bobby@neoawareness.com>
+-- Copyright (c) 2010-2014 by Robert G. Jakabosky <bobby@neoawareness.com>
 --
 -- Permission is hereby granted, free of charge, to any person obtaining a copy
 -- of this software and associated documentation files (the "Software"), to deal
@@ -26,11 +26,16 @@ local tostring = tostring
 local setmetatable = setmetatable
 local type = type
 local rawset = rawset
+local char = string.char
 
 local mod_path = string.match(...,".*%.") or ''
 
 local buffer = require(mod_path .. "buffer")
 local new_buffer = buffer.new
+
+local zigzag = require(mod_path .. "zigzag")
+local zigzag64 = zigzag.zigzag64
+local zigzag32 = zigzag.zigzag32
 
 local struct = require"struct"
 local spack = struct.pack
@@ -38,24 +43,7 @@ local spack = struct.pack
 local bit = require"bit"
 local band = bit.band
 local bor = bit.bor
-local bxor = bit.bxor
-local lshift = bit.lshift
 local rshift = bit.rshift
-local arshift = bit.arshift
-
-local char = string.char
-
--- ZigZag encode/decode
-local function zigzag64(num)
-	num = num * 2
-	if num < 0 then
-		num = (-num) - 1
-	end
-	return num
-end
-local function zigzag32(num)
-	return bxor(lshift(num, 1), arshift(num, 31))
-end
 
 local function varint_next_byte(num)
 	if num >= 0 and num < 128 then return num end
@@ -70,9 +58,6 @@ local function append(buf, off, len, data)
 end
 
 module(...)
-
-_M.zigzag64 = zigzag64
-_M.zigzag32 = zigzag32
 
 ----------------------------------------------------------------------------------
 --

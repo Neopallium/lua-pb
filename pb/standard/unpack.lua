@@ -1,4 +1,4 @@
--- Copyright (c) 2010-2011 by Robert G. Jakabosky <bobby@neoawareness.com>
+-- Copyright (c) 2010-2014 by Robert G. Jakabosky <bobby@neoawareness.com>
 --
 -- Permission is hereby granted, free of charge, to any person obtaining a copy
 -- of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,10 @@ local new_unknown = unknown.new
 local buffer = require(mod_path .. "buffer")
 local new_buffer = buffer.new
 
+local zigzag = require(mod_path .. "zigzag")
+local unzigzag64 = zigzag.unzigzag64
+local unzigzag32 = zigzag.unzigzag32
+
 local pack = require(mod_path .. "pack")
 local encode_field_tag = pack.encode_field_tag
 local wire_types = pack.wire_types
@@ -47,28 +51,10 @@ local sunpack = struct.unpack
 local bit = require"bit"
 local band = bit.band
 local bor = bit.bor
-local bxor = bit.bxor
 local lshift = bit.lshift
 local rshift = bit.rshift
-local arshift = bit.arshift
-
-local char = string.char
-
--- un-ZigZag encode/decode
-local function unzigzag64(num)
-	if band(num, 1) == 1 then
-		num = -(num + 1)
-	end
-	return num / 2
-end
-local function unzigzag32(num)
-	return bxor(arshift(num, 1), -band(num, 1))
-end
 
 module(...)
-
-_M.unzigzag64 = unzigzag64
-_M.unzigzag32 = unzigzag32
 
 ----------------------------------------------------------------------------------
 --
