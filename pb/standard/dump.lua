@@ -66,6 +66,11 @@ local function safe_string(data)
 	return data:gsub([[([^%w ])]], escapes)
 end
 
+local to_hex = {}
+for i=0,255 do
+	to_hex[char(i)] = sformat('%02X', i)
+end
+
 module(...)
 
 ----------------------------------------------------------------------------------
@@ -74,25 +79,33 @@ module(...)
 --
 ----------------------------------------------------------------------------------
 
+local function append_raw64(buf, off, fmt, val)
+	if type(val) == 'number' then
+		return append(buf, off, sformat(fmt, val))
+	end
+	off = append(buf, off, "0x")
+	return append(buf, off, val:gsub('.', to_hex))
+end
+
 local basic = {
 -- varint types
 int32 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
 end,
 int64 = function(buf, off, val)
-	return append(buf, off, sformat("%d", val))
+	return append_raw64(buf, off, "%d", val)
 end,
 sint32 = function(buf, off, val)
 	return append(buf, off, sformat("%d", val))
 end,
 sint64 = function(buf, off, val)
-	return append(buf, off, sformat("%d", val))
+	return append_raw64(buf, off, "%d", val)
 end,
 uint32 = function(buf, off, val)
 	return append(buf, off, sformat("%u", val))
 end,
 uint64 = function(buf, off, val)
-	return append(buf, off, sformat("%u", val))
+	return append_raw64(buf, off, "%u", val)
 end,
 bool = function(buf, off, val)
 	return append(buf, off, (val == 0) and "false" or "true")
@@ -102,10 +115,10 @@ enum = function(buf, off, val)
 end,
 -- 64-bit fixed
 fixed64 = function(buf, off, val)
-	return append(buf, off, sformat("%u", val))
+	return append_raw64(buf, off, "%u", val)
 end,
 sfixed64 = function(buf, off, val)
-	return append(buf, off, sformat("%d", val))
+	return append_raw64(buf, off, "%d", val)
 end,
 double = function(buf, off, val)
 	return append(buf, off, tostring(val))
