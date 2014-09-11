@@ -33,7 +33,6 @@ local buffer = require(mod_path .. "buffer")
 local new_buffer = buffer.new
 
 local struct = require"struct"
-local spack = struct.pack
 
 local bit = require"bit"
 local band = bit.band
@@ -44,9 +43,49 @@ local rshift = bit.rshift
 local arshift = bit.arshift
 
 local char = string.char
+local byte = string.byte
+
+local function spack(fmt, num)
+	if type(num) == "string" then
+		return num
+	end
+	return struct.pack(fmt, num)
+end
 
 -- ZigZag encode/decode
+
+function zigzag_strnum(str)
+	local carry = 0
+	local out = {}
+	local negative = false
+	for i = 1, #str do
+		local byte = string.byte(str:sub(i,i))
+		local msbit = rshift(byte, 7)
+		local val = band(lshift(byte, 1), 0xff)
+		if i == 1 then
+			if msbit == 1 then
+				negative = true
+			end
+		else
+			out[i-1] = bor(out[i-1], carry)
+		end
+		out[i] = val
+		carry = msbit
+		i = i + 1
+	end
+	for i = 1, #str do
+		if negative then
+			out[i] = bxor(out[i], 0xff)
+		end
+		out[i] = string.char(out[i])
+	end
+	return table.concat(out)
+end
+
 local function zigzag64(num)
+	if type(num) == "string" then
+		return zigzag_strnum(num)
+	end
 	num = num * 2
 	if num < 0 then
 		num = (-num) - 1
@@ -61,6 +100,28 @@ local function varint_next_byte(num)
 	if num >= 0 and num < 128 then return num end
 	local b = bor(band(num, 0x7F), 0x80)
 	return (b), varint_next_byte(rshift(num, 7))
+end
+
+local function varint_strnum(num, at, idx, mask, rest)
+	if not at then
+		num = num:gsub("^%z*", "")
+		if num == "" then return 0 end
+		at = #num
+		idx = 0
+		mask = 0xff
+		rest = 0
+	elseif idx == 7 and mask == 1 then
+		return bor(rest, 0x80), varint_strnum(num, at, 0, 0xff, 0)
+	end
+	if at > 0 then
+		local b = byte(num:sub(at,at))
+		mask = rshift(mask, 1)
+		local val = bor(bor(lshift(band(b, mask), idx), rest), 0x80)
+		rest = rshift(b, 7-idx)
+		return (val), varint_strnum(num, at-1, idx+1, mask, rest)
+	else
+		return rest
+	end
 end
 
 local function append(buf, off, len, data)
@@ -78,10 +139,16 @@ module(...)
 ----------------------------------------------------------------------------------
 
 local function pack_varint64(num)
+	if type(num) == "string" and #num <= 8 then
+		return char(varint_strnum(num))
+	end
 	return char(varint_next_byte(num))
 end
 
 local function pack_varint32(num)
+	if type(num) == "string" and #num <= 4 then
+		return char(varint_strnum(num))
+	end
 	return char(varint_next_byte(num))
 end
 
