@@ -35,23 +35,29 @@ local lshift = bit.lshift
 local arshift = bit.arshift
 
 -- ZigZag encode
-local zigzag64
 
 local fmts = {
 	'>I1', '>I2', '>I3',
 	'>I4', '>I5', '>I6',
 }
-local function zigzag_raw64(num)
+local function normalize_number(num)
+	if type(num) ~= 'string' then
+		return num
+	end
 	local len = #num
 	if len < 8 then
 		if len <= 6 then
 			if len == 0 then return 0 end
 			-- small enough to use Lua numbers.
-			return zigzag64(sunpack(fmts[len], num))
+			return sunpack(fmts[len], num)
 		end
 		-- make sure string is 8 bytes long.
 		num = '\0' .. num
 	end
+	return num
+end
+
+local function zigzag_raw64(num)
 	local h,l = sunpack('>i4i4', num)
 	h = h * 2
 	if l < 0 then
@@ -65,9 +71,9 @@ local function zigzag_raw64(num)
 	return spack('>i4i4', h, l)
 end
 
-function zigzag64(num)
+local function zigzag64(num)
 	if type(num) == 'string' then
-		return zigzag_raw64(num)
+		return zigzag_raw64(normalize_number(num))
 	end
 	num = num * 2
 	if num < 0 then
@@ -80,18 +86,8 @@ local function zigzag32(num)
 end
 
 -- ZigZag decode
-local unzigzag64
 
 local function unzigzag_raw64(num)
-	local len = #num
-	if len < 8 then
-		if len <= 6 then
-			-- small enough to use Lua numbers.
-			return unzigzag64(sunpack(fmts[len], num))
-		end
-		-- make sure string is 8 bytes long.
-		num = '\0' .. num
-	end
 	local h,l = sunpack('>I4I4', num)
 	if l % 2 == 1 then
 		if l == 0xFFFFFFFF then
@@ -116,9 +112,9 @@ local function unzigzag_raw64(num)
 	return spack('>i4i4', h, l)
 end
 
-function unzigzag64(num)
+local function unzigzag64(num)
 	if type(num) == 'string' then
-		return unzigzag_raw64(num)
+		return unzigzag_raw64(normalize_number(num))
 	end
 	if num % 2 == 1 then
 		num = -(num + 1)
@@ -130,6 +126,8 @@ local function unzigzag32(num)
 end
 
 module(...)
+
+_M.normalize_number = normalize_number
 
 _M.zigzag64 = zigzag64
 _M.zigzag32 = zigzag32
