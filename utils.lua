@@ -30,7 +30,8 @@ local tonumber = tonumber
 local tostring = tostring
 local pairs = pairs
 local string = string
-local sbyte = string.byte
+local sformat = string.format
+local char = string.char
 local io = io
 
 module(...)
@@ -68,16 +69,20 @@ end
 -- hex dump functions.
 --
 local write = io.write
-local format = string.format
 local function printf(fmt, ...)
-	return write(format(fmt, ...))
+	return write(sformat(fmt, ...))
 end
 local rep = string.rep
+-- byte to hex map
+hex = {}
+for i=0,255 do
+	hex[char(i)] = sformat('%02X', i)
+end
 function hex_print(buf)
 	for byte=1, #buf, 16 do
 		local chunk = buf:sub(byte, byte+15)
 		printf('%08X  ',byte-1)
-		chunk:gsub('.', function (c) printf('%02X ',sbyte(c)) end)
+		chunk:gsub('.', hex)
 		write(rep(' ',3*(16-#chunk)))
 		write(' ',chunk:gsub('[^%w%p ]','.'),"\n") 
 	end
@@ -86,8 +91,8 @@ function hex_dump(buf)
 	local out = ''
 	for byte=1, #buf, 16 do
 		local chunk = buf:sub(byte, byte+15)
-		out = out .. format('%08X  ',byte-1)
-		out = out .. chunk:gsub('.', function (c) return format('%02X ',sbyte(c)) end)
+		out = out .. sformat('%08X  ',byte-1)
+		out = out .. chunk:gsub('.', hex)
 		out = out .. rep(' ',3*(16-#chunk))
 		out = out .. ' ' .. chunk:gsub('[^%w%p ]','.') .. "\n" 
 	end
@@ -130,7 +135,7 @@ function dump_recur(seen, obj, depth, dbg)
 					out = '<bin>\n' .. hex_dump(obj) .. '\n</bin>'
 				else
 					out = '<bin>0x' ..
-						obj:gsub('.', function (c) return format('%02X',sbyte(c)) end) .. '</bin>'
+						obj:gsub('.', hex) .. '</bin>'
 				end
 			end
 		else
