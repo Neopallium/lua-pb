@@ -36,14 +36,39 @@ local new_buffer = buffer.new
 local zigzag = require(mod_path .. "zigzag")
 local zigzag64 = zigzag.zigzag64
 local zigzag32 = zigzag.zigzag32
+local normalize_number = zigzag.normalize_number
 
 local struct = require"struct"
+local sunpack = struct.unpack
 local spack = struct.pack
 
 local bit = require"bit"
 local band = bit.band
 local bor = bit.bor
 local rshift = bit.rshift
+local lshift = bit.lshift
+
+local function varint64_next_byte_h_l(h, l)
+	if l >= 0 and l < 128 then
+		if h > 0 then
+			-- merg high 32-bits with the last 4 bits from the low 32-bits
+			l = lshift(h, 4) + l
+		end
+		if l >= 0 and l < 128 then
+			-- done.
+			return l
+		end
+		-- clear high 32-bits.
+		h = 0
+	end
+	local b = bor(band(l, 0x7F), 0x80)
+	return (b), varint64_next_byte_h_l(h, rshift(l, 7))
+end
+
+local function pack_varint64_raw(num)
+	local h,l = sunpack('>I4I4', num)
+	return char(varint64_next_byte_h_l(h, l))
+end
 
 local function varint_next_byte(num)
 	if num >= 0 and num < 128 then return num end
@@ -66,10 +91,16 @@ module(...)
 ----------------------------------------------------------------------------------
 
 local function pack_varint64(num)
+	if type(num) == 'string' then
+		return pack_varint64_raw(normalize_number(num))
+	end
 	return char(varint_next_byte(num))
 end
 
 local function pack_varint32(num)
+	if type(num) == 'string' then
+		return pack_varint64_raw(normalize_number(num))
+	end
 	return char(varint_next_byte(num))
 end
 
@@ -90,11 +121,19 @@ svarint32 = function(buf, off, len, num)
 end,
 
 fixed64 = function(buf, off, len, num)
-	return append(buf, off, len, spack('<I8', num))
+	if type(num) == 'number' then
+		return append(buf, off, len, spack('<I8', num))
+	end
+	local b1,b2,b3,b4,b5,b6,b7,b8 = num:byte(1, 8)
+	return append(buf, off, len, char(b8,b7,b6,b5,b4,b3,b2,b1))
 end,
 
 sfixed64 = function(buf, off, len, num)
-	return append(buf, off, len, spack('<i8', num))
+	if type(num) == 'number' then
+		return append(buf, off, len, spack('<i8', num))
+	end
+	local b1,b2,b3,b4,b5,b6,b7,b8 = num:byte(1, 8)
+	return append(buf, off, len, char(b8,b7,b6,b5,b4,b3,b2,b1))
 end,
 
 double = function(buf, off, len, num)

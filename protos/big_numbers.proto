@@ -1,0 +1,14 @@
+
+package big_numbers;
+
+option optimize_for = SPEED;
+
+message BigNumbers1 {
+  required int64 field1 = 1;
+  required uint64 field2 = 2;
+  required sint64 field3 = 3;
+  required fixed64 field4 = 4;
+  required sfixed64 field5 = 5;
+  required double field6 = 6;
+}
+

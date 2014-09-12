@@ -25,6 +25,7 @@ local error = error
 local tostring = tostring
 local setmetatable = setmetatable
 local sformat = string.format
+local char = string.char
 local type = type
 local pcall = pcall
 local rawset = rawset
@@ -62,6 +63,52 @@ module(...)
 --
 ----------------------------------------------------------------------------------
 
+local function raw_concat_next(buf, off, len)
+	if off == len then
+		return buf[off]
+	end
+	return buf[off], raw_concat_next(buf, off + 1, len)
+end
+
+local function raw_concat(buf, len)
+	return char(raw_concat_next(buf, 1, len or #buf))
+end
+
+local LNumMaxOff = 128 ^ 6
+local tmp_buf = {}
+local function unpack_varint64_raw(num, data, off)
+	local buf = tmp_buf
+	-- encode first 48bits
+	buf[8] = band(num, 0xFF)
+	num = rshift(num, 8)
+	buf[7] = band(num, 0xFF)
+	num = rshift(num, 8)
+	buf[6] = band(num, 0xFF)
+	num = rshift(num, 8)
+	buf[5] = band(num, 0xFF)
+	num = rshift(num, 8)
+	buf[4] = band(num, 0xFF)
+	num = rshift(num, 8)
+	buf[3] = band(num, 0xFF)
+	num = rshift(num, 8)
+
+	local b = data:byte(off)
+	local boff = 2 -- still one bit in 'num'
+	num = num + band(b, 0x7F) * boff
+	while b >= 128 do
+		boff = boff * 128
+		off = off + 1
+		b = data:byte(off)
+		num = num + (band(b, 0x7F) * boff)
+	end
+	-- encode last 16bits
+	buf[2] = band(num, 0xFF)
+	num = rshift(num, 8)
+	buf[1] = band(num, 0xFF)
+
+	return raw_concat(buf, 8), off + 1
+end
+
 local function unpack_varint64(data, off)
 	local b = data:byte(off)
 	local num = band(b, 0x7F)
@@ -69,6 +116,9 @@ local function unpack_varint64(data, off)
 	while b >= 128 do
 		off = off + 1
 		b = data:byte(off)
+		if boff > LNumMaxOff and b > 0x1F then
+			return unpack_varint64_raw(num, data, off)
+		end
 		num = num + (band(b, 0x7F) * boff)
 		boff = boff * 128
 	end
@@ -78,12 +128,12 @@ end
 local function unpack_varint32(data, off)
 	local b = data:byte(off)
 	local num = band(b, 0x7F)
-	local boff = 7
+	local boff = 128
 	while b >= 128 do
 		off = off + 1
 		b = data:byte(off)
-		num = bor(num, lshift(band(b, 0x7F), boff))
-		boff = boff + 7
+		num = num + (band(b, 0x7F) * boff)
+		boff = boff * 128
 	end
 	return num, off + 1
 end
@@ -104,11 +154,21 @@ svarint32 = function(data, off)
 end,
 
 fixed64 = function(data, off)
-	return sunpack('<I8', data, off)
+	-- check if the top 12 bits are zero.
+	if data:byte(off + 7) == 0 and data:byte(off + 6) <= 0x1F then
+		return sunpack('<I8', data, off)
+	end
+	local b8,b7,b6,b5,b4,b3,b2,b1 = data:byte(off, off + 7)
+	return char(b1,b2,b3,b4,b5,b6,b7,b8), off + 8
 end,
 
 sfixed64 = function(data, off)
-	return sunpack('<i8', data, off)
+	-- check if the top 12 bits are zero.
+	if data:byte(off + 7) == 0 and data:byte(off + 6) <= 0x1F then
+		return sunpack('<i8', data, off)
+	end
+	local b8,b7,b6,b5,b4,b3,b2,b1 = data:byte(off, off + 7)
+	return char(b1,b2,b3,b4,b5,b6,b7,b8), off + 8
 end,
 
 double = function(data, off)
