@@ -35,9 +35,6 @@ local mod_path = string.match(...,".*%.") or ''
 local unknown = require(mod_path .. "unknown")
 local new_unknown = unknown.new
 
-local buffer = require(mod_path .. "buffer")
-local new_buffer = buffer.new
-
 local zigzag = require(mod_path .. "zigzag")
 local unzigzag64 = zigzag.unzigzag64
 local unzigzag32 = zigzag.unzigzag32
