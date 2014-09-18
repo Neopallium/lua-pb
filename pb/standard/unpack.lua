@@ -62,7 +62,7 @@ module(...)
 local make_int64 = char
 
 local LNumMaxOff = 128 ^ 6
-local function unpack_varint64_raw(num, data, off)
+local function unpack_varint64_raw(num, data, off, signed)
 	-- encode first 48bits
 	b1 = band(num, 0xFF)
 	num = floor(num / 256)
@@ -91,10 +91,10 @@ local function unpack_varint64_raw(num, data, off)
 	num = floor(num / 256)
 	b8 = band(num, 0xFF)
 
-	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, true), off + 1
+	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, signed), off + 1
 end
 
-local function unpack_varint64(data, off)
+local function unpack_varint64(data, off, signed)
 	local b = data:byte(off)
 	local num = band(b, 0x7F)
 	local boff = 128
@@ -102,7 +102,7 @@ local function unpack_varint64(data, off)
 		off = off + 1
 		b = data:byte(off)
 		if boff > LNumMaxOff and b > 0x1F then
-			return unpack_varint64_raw(num, data, off)
+			return unpack_varint64_raw(num, data, off, signed)
 		end
 		num = num + (band(b, 0x7F) * boff)
 		boff = boff * 128
@@ -124,8 +124,16 @@ local function unpack_varint32(data, off)
 end
 
 local basic = {
-varint64 = unpack_varint64,
+varint64 = function(data, off)
+	return unpack_varint64(data, off, true)
+end,
+varuint64 = function(data, off)
+	return unpack_varint64(data, off, false)
+end,
+
 varint32 = unpack_varint32,
+varuint32 = unpack_varint32,
+
 svarint64 = function(data, off)
 	local num
 	num, off = unpack_varint64(data, off)
@@ -439,11 +447,11 @@ end
 local map_types = {
 -- varints
 int32  = "varint32",
-uint32 = "varint32",
+uint32 = "varuint32",
 bool   = "varint32",
 enum   = "varint32",
 int64  = "varint64",
-uint64 = "varint64",
+uint64 = "varuint64",
 sint32 = "svarint32",
 sint64 = "svarint64",
 -- bytes
