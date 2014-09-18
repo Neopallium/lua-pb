@@ -85,7 +85,7 @@ assert(file:write(bin))
 assert(file:close())
 
 print("--- decode message")
-local msg1, off = BigNumbers1():Parse(bin)
+local msg1, off = assert(BigNumbers1():Parse(bin))
 
 check_msg(msg1)
 print(utils.dump(msg1))
