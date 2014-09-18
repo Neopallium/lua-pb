@@ -59,33 +59,22 @@ module(...)
 --
 ----------------------------------------------------------------------------------
 
-local function raw_concat_next(buf, off, len)
-	if off == len then
-		return buf[off]
-	end
-	return buf[off], raw_concat_next(buf, off + 1, len)
-end
-
-local function raw_concat(buf, len)
-	return char(raw_concat_next(buf, 1, len or #buf))
-end
+local make_int64 = char
 
 local LNumMaxOff = 128 ^ 6
-local tmp_buf = {}
 local function unpack_varint64_raw(num, data, off)
-	local buf = tmp_buf
 	-- encode first 48bits
-	buf[8] = band(num, 0xFF)
+	b1 = band(num, 0xFF)
 	num = floor(num / 256)
-	buf[7] = band(num, 0xFF)
+	b2 = band(num, 0xFF)
 	num = floor(num / 256)
-	buf[6] = band(num, 0xFF)
+	b3 = band(num, 0xFF)
 	num = floor(num / 256)
-	buf[5] = band(num, 0xFF)
+	b4 = band(num, 0xFF)
 	num = floor(num / 256)
-	buf[4] = band(num, 0xFF)
+	b5 = band(num, 0xFF)
 	num = floor(num / 256)
-	buf[3] = band(num, 0xFF)
+	b6 = band(num, 0xFF)
 	num = floor(num / 256)
 
 	local b = data:byte(off)
@@ -98,11 +87,11 @@ local function unpack_varint64_raw(num, data, off)
 		num = num + (band(b, 0x7F) * boff)
 	end
 	-- encode last 16bits
-	buf[2] = band(num, 0xFF)
+	b7 = band(num, 0xFF)
 	num = floor(num / 256)
-	buf[1] = band(num, 0xFF)
+	b8 = band(num, 0xFF)
 
-	return raw_concat(buf, 8), off + 1
+	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, true), off + 1
 end
 
 local function unpack_varint64(data, off)
@@ -154,8 +143,10 @@ fixed64 = function(data, off)
 	if data:byte(off + 7) == 0 and data:byte(off + 6) <= 0x1F then
 		return sunpack('<I8', data, off)
 	end
-	local b8,b7,b6,b5,b4,b3,b2,b1 = data:byte(off, off + 7)
-	return char(b1,b2,b3,b4,b5,b6,b7,b8), off + 8
+	-- read Little-endian
+	local b1,b2,b3,b4,b5,b6,b7,b8 = data:byte(off, off + 7)
+	-- convert to Big-endian
+	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, false), off + 8
 end,
 
 sfixed64 = function(data, off)
@@ -163,8 +154,10 @@ sfixed64 = function(data, off)
 	if data:byte(off + 7) == 0 and data:byte(off + 6) <= 0x1F then
 		return sunpack('<i8', data, off)
 	end
-	local b8,b7,b6,b5,b4,b3,b2,b1 = data:byte(off, off + 7)
-	return char(b1,b2,b3,b4,b5,b6,b7,b8), off + 8
+	-- read Little-endian
+	local b1,b2,b3,b4,b5,b6,b7,b8 = data:byte(off, off + 7)
+	-- convert to Big-endian
+	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, true), off + 8
 end,
 
 double = function(data, off)
@@ -548,5 +541,9 @@ function register_msg(mt)
 	return function(msg, data, off)
 		return message(data, off, #data, msg, tags)
 	end
+end
+
+function set_make_int64(func)
+	make_int64 = func
 end
 

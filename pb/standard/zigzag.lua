@@ -41,20 +41,21 @@ local fmts = {
 	'>I4', '>I5', '>I6',
 }
 local function normalize_number(num)
-	if type(num) ~= 'string' then
-		return num
+	local t = type(num)
+	if t ~= 'string' then
+		return num, t
 	end
 	local len = #num
 	if len < 8 then
 		if len <= 6 then
 			if len == 0 then return 0 end
 			-- small enough to use Lua numbers.
-			return sunpack(fmts[len], num)
+			return sunpack(fmts[len], num), 'number'
 		end
 		-- make sure string is 8 bytes long.
 		num = '\0' .. num
 	end
-	return num
+	return num, 'string'
 end
 
 local function zigzag_raw64(num)
@@ -72,8 +73,9 @@ local function zigzag_raw64(num)
 end
 
 local function zigzag64(num)
-	if type(num) == 'string' then
-		return zigzag_raw64(normalize_number(num))
+	local num, t = normalize_number(num)
+	if t == 'string' then
+		return zigzag_raw64(num)
 	end
 	num = num * 2
 	if num < 0 then
@@ -112,9 +114,31 @@ local function unzigzag_raw64(num)
 	return spack('>i4i4', h, l)
 end
 
+-- handle LuaJIT 2.x int64_t and uint64_t cdata numbers
+local function unzigzag_cdata64(num)
+	local high_bit = false
+	-- we need to work with a positive number
+	if num < 0 then
+		high_bit = true
+		num = 0x8000000000000000 + num
+	end
+	if num % 2 == 1 then
+		num = -(num + 1)
+	end
+	if high_bit then
+		return (num / 2) + 0x4000000000000000
+	end
+	return num / 2
+end
+
 local function unzigzag64(num)
-	if type(num) == 'string' then
-		return unzigzag_raw64(normalize_number(num))
+	local num, t = normalize_number(num)
+	if t ~= 'number' then
+		if t == 'string' then
+			return unzigzag_raw64(num)
+		else
+			return unzigzag_cdata64(num)
+		end
 	end
 	if num % 2 == 1 then
 		num = -(num + 1)

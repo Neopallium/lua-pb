@@ -23,6 +23,7 @@ local io = io
 local fopen = io.open
 local assert = assert
 local sformat = string.format
+local char = string.char
 local print = print
 local ploaders = package.loaders
 local m_require = require
@@ -50,12 +51,41 @@ end
 
 local mod_name = ...
 
+local function make_int64(b8,b7,b6,b5,b4,b3,b2,b1, signed)
+	return char(b8,b7,b6,b5,b4,b3,b2,b1)
+end
+
+-- detect LuaJIT 2.x
+if jit then
+	local stat, ffi = pcall(require, 'ffi')
+	if stat and ffi then
+		function make_int64(b8,b7,b6,b5,b4,b3,b2,b1, signed)
+			local num = ffi.new(signed and 'int64_t' or 'uint64_t',
+				-- initialize with highest 32-bits
+				((b8 * 0x1000000) + (b7 * 0x10000) + (b6 * 0x100) + b5)
+			)
+			-- shift high bits up
+			num = num * 0x100000000
+			-- add lowwest 32-bits
+			return num + ((b4 * 0x1000000) + (b3 * 0x10000) + (b2 * 0x100) + b1)
+		end
+	end
+end
+
 -- backend cache.
 local backends = {}
 local default_backend = 'standard'
+local backend_interface = {
+	'compile', 'set_make_int64',
+}
 
-local function new_backend(name, compile, encode, decode)
-	local backend = {compile = compile, encode = encode, decode = decode, cache = {}}
+local function new_backend(name, module)
+	local backend = {cache = {}, set_make_int64 = function() end, }
+	-- copy backend interface from module.
+	for i=1,#backend_interface do
+		local meth = backend_interface[i]
+		backend[meth] = module[meth]
+	end
 	backends[name] = backend
 	return backend
 end
@@ -66,7 +96,9 @@ local function get_backend(name)
 	if not backend then
 		-- load new backend
 		local mod = require(mod_name .. '.' .. name)
-		backend = new_backend(name, mod.compile, mod.encode, mod.decode)
+		backend = new_backend(name, mod)
+		-- set backend's make_int64 function.
+		backend.set_make_int64(make_int64)
 	end
 	return backend
 end
@@ -242,5 +274,15 @@ end
 
 function _M.print(msg)
 	io.write(msg:SerializePartial('text'))
+end
+
+function set_make_int64_func(new_make_int64)
+	local old
+	make_int64, old = new_make_int64, make_int64
+	return old
+end
+
+function get_make_int64_func()
+	return make_int64
 end
 

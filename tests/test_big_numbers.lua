@@ -16,53 +16,44 @@ local data = {
 	field5 = "\127\255\255\255\255\255\255\255",
 	field6 = 9876543210.9876543210,
 }
+local make_int64 = pb.get_make_int64_func()
+for k,v in pairs(data) do
+	if type(v) == 'string' then
+		data[k] = make_int64(v:byte(1, 8))
+	end
+end
+
 print(utils.dump(data))
 
 local function to_hex(n)
-	if type(n) == 'number' then
-		return string.format('%016X', n)
+	local t = type(n)
+	if t ~= 'string' then
+		if t == 'number' then
+			return string.format('%016X', n)
+		else
+			return string.format('%08X%08X', tonumber(n / 0x100000000), tonumber(n % 0x100000000))
+		end
 	end
 	local l = #n
-	if l == 8 then
-		return string.format('%02X%02X%02X%02X%02X%02X%02X%02X', n:byte(1,8))
+	if l == 0 then return '0000000000000000' end
+	n = (n:gsub('.', utils.hex))
+	if l < 8 then
+		n = ('00'):rep(8 - l) .. n
 	end
-	if l == 0 then return '00' end
-	return string.format(('%02X'):rep(l), n:byte(1,l))
-end
-
-local function tonum(str)
-	if type(str) == 'string' then
-		local l = #str
-		if l == 8 then
-			return struct.unpack('>i8', str)
-		end
-		if l == 0 then return 0 end
-		return struct.unpack('>I' .. tostring(l), str)
-	end
-	return str
-end
-
-local function extend_raw64(n)
-	return ('\0'):rep(8 - #n) .. n
+	return n
 end
 
 local function cmp_raw64(n1, n2)
 	if n1 == n2 then return true end
-	-- compare Lua number with raw64 value
-	if type(n1) == 'number' then
-		return n1 == tonum(n2)
-	elseif type(n2) == 'number' then
-		return tonum(n1) == n2
-	end
-	-- normalize the length of two raw64 values to compare them.
-	return extend_raw64(n1) == extend_raw64(n2)
+	if to_hex(n1) == to_hex(n2) then return true end
+	return false
 end
 
 local function check_msg(msg)
 	assert(msg ~= nil)
 	for k,v in pairs(data) do
 		local v1 = msg[k]
-		print('--- check:', k, to_hex(v1), to_hex(v))
+		print('--- check:', k, to_hex(v1), to_hex(v), type(v1), type(v))
 		if not cmp_raw64(v1, v) then
 			error(string.format("field '%s' differs: %s ~= %s",
 				k, utils.dump(v1), utils.dump(v)))

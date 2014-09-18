@@ -4,6 +4,8 @@ local struct = require'struct'
 local zigzag = d_zigzag.zigzag64
 local unzigzag = d_zigzag.unzigzag64
 
+local utils = require"utils"
+
 local first = tonumber(arg[1] or -10000000)
 local last = tonumber(arg[2] or 10000000)
 local bits = tonumber(arg[3] or 64)
@@ -22,52 +24,28 @@ end
 print(string.format("test range(0x%016X <=> 0x%016X) bits=%d", first, last, bits))
 print(string.format('--- count=%d', last - first))
 
-local function tostr(num)
-	if type(num) == 'number' then
-		return struct.pack('>i8', num)
-	end
-	return num
-end
-
-local function tonum(str)
-	if type(str) == 'string' then
-		local l = #str
-		if l == 8 then
-			return struct.unpack('>i8', str)
-		end
-		if l == 0 then return 0 end
-		return struct.unpack('>I' .. tostring(l), str)
-	end
-	return str
-end
-
 local function to_hex(n)
-	if type(n) == 'number' then
-		return string.format('%016X', n)
+	local t = type(n)
+	if t ~= 'string' then
+		if t == 'number' then
+			return string.format('%016X', n)
+		else
+			return string.format('%08X%08X', tonumber(n / 0x100000000), tonumber(n % 0x100000000))
+		end
 	end
 	local l = #n
-	--return n:gsub('.', function(b) return string.format('%02X', b) end)
-	if l == 8 then
-		return string.format('%02X%02X%02X%02X%02X%02X%02X%02X', n:byte(1,8))
+	if l == 0 then return '0000000000000000' end
+	n = (n:gsub('.', utils.hex))
+	if l < 8 then
+		n = ('00'):rep(8 - l) .. n
 	end
-	if l == 0 then return '00' end
-	return string.format(('%02X'):rep(l), n:byte(1,l))
-end
-
-local function extend_raw64(n)
-	return ('\0'):rep(8 - #n) .. n
+	return n
 end
 
 local function cmp_raw64(n1, n2)
 	if n1 == n2 then return true end
-	-- compare Lua number with raw64 value
-	if type(n1) == 'number' then
-		return n1 == tonum(n2)
-	elseif type(n2) == 'number' then
-		return tonum(n1) == n2
-	end
-	-- normalize the length of two raw64 values to compare them.
-	return extend_raw64(n1) == extend_raw64(n2)
+	if to_hex(n1) == to_hex(n2) then return true end
+	return false
 end
 
 local function test_zigzag(n)

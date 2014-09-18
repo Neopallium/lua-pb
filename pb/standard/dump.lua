@@ -23,6 +23,7 @@ local pairs = pairs
 local print = print
 local error = error
 local tostring = tostring
+local tonumber = tonumber
 local setmetatable = setmetatable
 local type = type
 local sformat = string.format
@@ -80,11 +81,17 @@ module(...)
 ----------------------------------------------------------------------------------
 
 local function append_raw64(buf, off, fmt, val)
-	if type(val) == 'number' then
+	local t = type(val)
+	if t == 'number' then
 		return append(buf, off, sformat(fmt, val))
 	end
-	off = append(buf, off, "0x")
-	return append(buf, off, val:gsub('.', to_hex))
+	-- 64bit integer encoded in a string
+	if t == 'string' then
+		off = append(buf, off, "0x")
+		return append(buf, off, val:gsub('.', to_hex))
+	end
+	-- LuaJIT (u)int64_t.  split into two 32-bit values.
+	return append(buf, off, sformat('0x%08X%08X', tonumber(val / 0x100000000), tonumber(val % 0x100000000)))
 end
 
 local basic = {

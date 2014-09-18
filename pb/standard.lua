@@ -375,3 +375,7 @@ function compile(ast)
 	return proto
 end
 
+function set_make_int64(func)
+	return funpack.set_make_int64(func)
+end
+

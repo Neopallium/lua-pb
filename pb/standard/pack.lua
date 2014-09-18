@@ -70,6 +70,10 @@ local function pack_varint64_raw(num)
 	return char(varint64_next_byte_h_l(h, l))
 end
 
+local function pack_varint64_cdata(num)
+	return char(varint64_next_byte_h_l(tonumber(num / 0x100000000), tonumber(num % 0x100000000)))
+end
+
 local function varint_next_byte(num)
 	if num >= 0 and num < 128 then return num end
 	local b = bor(band(num, 0x7F), 0x80)
@@ -82,6 +86,23 @@ local function append(buf, off, len, data)
 	return off, len + #data
 end
 
+local function append_raw64(buf, off, len, num, t)
+	if t == 'string' then
+		local b8,b7,b6,b5,b4,b3,b2,b1 = num:byte(1, 8)
+		return append(buf, off, len, char(b1,b2,b3,b4,b5,b6,b7,b8))
+	else
+		off = off + 1; buf[off] = char(tonumber(num % 0x100)); num = num / 0x100
+		off = off + 1; buf[off] = char(tonumber(num % 0x100)); num = num / 0x100
+		off = off + 1; buf[off] = char(tonumber(num % 0x100)); num = num / 0x100
+		off = off + 1; buf[off] = char(tonumber(num % 0x100)); num = num / 0x100
+		off = off + 1; buf[off] = char(tonumber(num % 0x100)); num = num / 0x100
+		off = off + 1; buf[off] = char(tonumber(num % 0x100)); num = num / 0x100
+		off = off + 1; buf[off] = char(tonumber(num % 0x100)); num = num / 0x100
+		off = off + 1; buf[off] = char(tonumber(num % 0x100))
+		return off, len + 8
+	end
+end
+
 module(...)
 
 ----------------------------------------------------------------------------------
@@ -91,17 +112,32 @@ module(...)
 ----------------------------------------------------------------------------------
 
 local function pack_varint64(num)
-	if type(num) == 'string' then
-		return pack_varint64_raw(normalize_number(num))
+	local num, t = normalize_number(num)
+	if t == 'number' then
+		return char(varint_next_byte(num))
 	end
-	return char(varint_next_byte(num))
+	if t == 'string' then
+		return pack_varint64_raw(num)
+	end
+	return pack_varint64_cdata(num)
 end
 
 local function pack_varint32(num)
-	if type(num) == 'string' then
-		return pack_varint64_raw(normalize_number(num))
+	local num, t = normalize_number(num)
+	if t == 'string' then
+		if #num > 4 then
+			num = num:sub(-4) -- only use the lowest 32-bits (4bytes)
+		end
+		return pack_varint64_raw(num)
 	end
-	return char(varint_next_byte(num))
+	-- only use the lowest 32-bits
+	if num >= 0x100000000 then
+		num = num % 0x100000000
+	end
+	if t == 'number' then
+		return char(varint_next_byte(num))
+	end
+	return pack_varint64_cdata(num)
 end
 
 local basic = {
@@ -121,19 +157,19 @@ svarint32 = function(buf, off, len, num)
 end,
 
 fixed64 = function(buf, off, len, num)
-	if type(num) == 'number' then
+	local t = type(num)
+	if t == 'number' then
 		return append(buf, off, len, spack('<I8', num))
 	end
-	local b1,b2,b3,b4,b5,b6,b7,b8 = num:byte(1, 8)
-	return append(buf, off, len, char(b8,b7,b6,b5,b4,b3,b2,b1))
+	return append_raw64(buf, off, len, num, t)
 end,
 
 sfixed64 = function(buf, off, len, num)
-	if type(num) == 'number' then
+	local t = type(num)
+	if t == 'number' then
 		return append(buf, off, len, spack('<i8', num))
 	end
-	local b1,b2,b3,b4,b5,b6,b7,b8 = num:byte(1, 8)
-	return append(buf, off, len, char(b8,b7,b6,b5,b4,b3,b2,b1))
+	return append_raw64(buf, off, len, num, t)
 end,
 
 double = function(buf, off, len, num)
