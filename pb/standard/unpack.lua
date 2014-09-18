@@ -29,6 +29,7 @@ local char = string.char
 local type = type
 local pcall = pcall
 local rawset = rawset
+local floor = math.floor
 
 local mod_path = string.match(...,".*%.") or ''
 
@@ -48,8 +49,6 @@ local sunpack = struct.unpack
 
 local bit = require"bit"
 local band = bit.band
-local bor = bit.bor
-local lshift = bit.lshift
 local rshift = bit.rshift
 
 module(...)
@@ -77,21 +76,21 @@ local function unpack_varint64_raw(num, data, off)
 	local buf = tmp_buf
 	-- encode first 48bits
 	buf[8] = band(num, 0xFF)
-	num = rshift(num, 8)
+	num = floor(num / 256)
 	buf[7] = band(num, 0xFF)
-	num = rshift(num, 8)
+	num = floor(num / 256)
 	buf[6] = band(num, 0xFF)
-	num = rshift(num, 8)
+	num = floor(num / 256)
 	buf[5] = band(num, 0xFF)
-	num = rshift(num, 8)
+	num = floor(num / 256)
 	buf[4] = band(num, 0xFF)
-	num = rshift(num, 8)
+	num = floor(num / 256)
 	buf[3] = band(num, 0xFF)
-	num = rshift(num, 8)
+	num = floor(num / 256)
 
 	local b = data:byte(off)
 	local boff = 2 -- still one bit in 'num'
-	num = num + band(b, 0x7F) * boff
+	num = num + (band(b, 0x7F) * boff)
 	while b >= 128 do
 		boff = boff * 128
 		off = off + 1
@@ -100,7 +99,7 @@ local function unpack_varint64_raw(num, data, off)
 	end
 	-- encode last 16bits
 	buf[2] = band(num, 0xFF)
-	num = rshift(num, 8)
+	num = floor(num / 256)
 	buf[1] = band(num, 0xFF)
 
 	return raw_concat(buf, 8), off + 1

@@ -27,6 +27,7 @@ local setmetatable = setmetatable
 local type = type
 local rawset = rawset
 local char = string.char
+local floor = math.floor
 
 local mod_path = string.match(...,".*%.") or ''
 
@@ -46,13 +47,12 @@ local bit = require"bit"
 local band = bit.band
 local bor = bit.bor
 local rshift = bit.rshift
-local lshift = bit.lshift
 
 local function varint64_next_byte_h_l(h, l)
 	if l >= 0 and l < 128 then
 		if h > 0 then
 			-- merg high 32-bits with the last 4 bits from the low 32-bits
-			l = lshift(h, 4) + l
+			l = (h * 16) + l
 		end
 		if l >= 0 and l < 128 then
 			-- done.
@@ -62,7 +62,7 @@ local function varint64_next_byte_h_l(h, l)
 		h = 0
 	end
 	local b = bor(band(l, 0x7F), 0x80)
-	return (b), varint64_next_byte_h_l(h, rshift(l, 7))
+	return (b), varint64_next_byte_h_l(h, floor(l / 128))
 end
 
 local function pack_varint64_raw(num)
