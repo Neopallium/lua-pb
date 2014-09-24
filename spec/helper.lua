@@ -2,6 +2,7 @@
 -- sudo luarocks install struct
 
 inspect = require 'spec.inspect'
+telescope = require 'telescope'
 
 local function compare_tables(t1, t2)
   local ty1 = type(t1)
@@ -27,3 +28,12 @@ telescope.make_assertion("tables", function(_, a, b)
 end, function(a, b)
   return compare_tables(a, b)
 end)
+
+telescope.make_assertion("length", function(_, a, b)
+	if not a then return "Expected table but got nil" end
+  return "Expected table length to be " .. b .. ", but was " .. #a
+end, function(a, b)
+	if not a then return false end
+  return #a == b
+end)
+
