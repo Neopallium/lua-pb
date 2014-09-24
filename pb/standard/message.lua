@@ -260,8 +260,6 @@ function _M.compile(node, mt, fields)
 	local tags = mt.tags
 	for i=1,#fields do
 		local field = fields[i]
-		-- packed arrays have a length
-		field.has_length = field.is_packed
 		-- get field tag
 		local tag = field.tag
 		-- check if the field is a user type

@@ -184,13 +184,9 @@ float = function(data, off)
 	return sunpack('<f', data, off)
 end,
 
-string = function(data, off)
-	local len
-	-- decode string length.
-	len, off = unpack_varint32(data, off)
+string = function(data, off, len)
 	-- decode string data.
-	local end_off = off + len
-	return data:sub(off, end_off - 1), end_off
+	return data:sub(off, len), len + 1
 end,
 }
 
@@ -228,7 +224,6 @@ end
 
 local fixed64 = basic.fixed64
 local fixed32 = basic.fixed32
-local string = basic.string
 local wire_unpack = {
 [0] = function(data, off, len, tag, unknowns)
 	local val
@@ -306,44 +301,26 @@ function unpack_unknown_field(data, off, len, tag, wire_type, unknowns)
 end
 
 --
--- packed repeated fields
+-- unpacked field
 --
-local packed = setmetatable({},{
-__index = function(tab, ftype)
-	local funpack
-	if type(ftype) == 'string' then
-		-- basic type
-		funpack = basic[ftype]
-	else
-		-- complex type (Enums)
-		funpack = ftype
-	end
-	rawset(tab, ftype, function(data, off, len, arr)
-		local i=#arr
-		while (off <= len) do
-			i = i + 1
-			arr[i], off = funpack(data, off, len, nil)
-		end
-		return arr, off
-	end)
-end,
-})
-
-local unpack_field
-local unpack_fields
-
-local function unpack_length_field(data, off, len, field, val)
-	-- decode field length.
-	local field_len
-	field_len, off  = unpack_varint32(data, off, len)
-
-	-- unpack field
-	return field.unpack(data, off, off + field_len - 1, val)
-end
-
-local function unpack_field(data, off, len, field, mdata)
+local function unpack_field(data, off, len, field, mdata, wire_type)
 	local name = field.name
 	local val
+	local field_len = len
+	local funpack = field.unpack
+
+	-- check if wiretype is length-delimited
+	if wire_type == 2 then
+		-- decode field length.
+		field_len, off  = unpack_varint32(data, off, len)
+		-- change field length to offset.
+		field_len = off + field_len - 1
+		-- make sure field length is less then message length.
+		if field_len > len then
+			error(sformat("Malformed Field, truncated field_len:%d ~= len:%d): %s",
+				field_len, len, field.name))
+		end
+	end
 
 	if field.is_repeated then
 		local arr = mdata[name]
@@ -352,26 +329,27 @@ local function unpack_field(data, off, len, field, mdata)
 			arr = field.new()
 			mdata[name] = arr
 		end
-		if field.is_packed then
+		-- check if repeated field was packed encoded.
+		if wire_type == 2 and field.wire_type ~= 2 then
 			-- unpack length-delimited packed array
-			return unpack_length_field(data, off, len, field, arr)
+			local i=#arr
+			while (off <= field_len) do
+				i = i + 1
+				arr[i], off = funpack(data, off, field_len)
+			end
+			return arr, off
 		end
 		-- unpack repeated field (just one)
-		if field.has_length then
-			-- unpack length-delimited field.
-			arr[#arr + 1], off = unpack_length_field(data, off, len, field, nil)
-		else
-			arr[#arr + 1], off = field.unpack(data, off, len)
-		end
+		arr[#arr + 1], off = funpack(data, off, field_len)
 		return arr, off
-	elseif field.has_length then
-		-- unpack length-delimited field
-		val, off = unpack_length_field(data, off, len, field, mdata[name])
-		mdata[name] = val
-		return val, off
 	end
-	-- is basic type.
-	val, off = field.unpack(data, off, len)
+	-- non-repeated field
+	if field.wire_type ~= wire_type then
+		error(sformat("Malformed Message, wire_type of field doesn't match (%d ~= %d)!",
+			field.wire_type, wire_type))
+	end
+	-- unpack field value.
+	val, off = funpack(data, off, field_len)
 	mdata[name] = val
 	return val, off
 end
@@ -393,11 +371,7 @@ local function unpack_fields(data, off, len, msg, tags, is_group)
 		end
 		field = tags[tag]
 		if field then
-			if field.wire_type ~= wire_type then
-				error(sformat("Malformed Message, wire_type of field doesn't match (%d ~= %d)!",
-					field.wire_type, wire_type))
-			end
-			val, off = unpack_field(data, off, len, field, mdata)
+			val, off = unpack_field(data, off, len, field, mdata, wire_type)
 		else
 			if not unknowns then
 				-- check if Message already has Unknown fields object.
@@ -523,14 +497,9 @@ function register_fields(mt)
 				wire_type = wire_types.group_start
 			elseif user_type_mt.is_enum then
 				wire_type = wire_types.enum
-				if field.is_unpacked then
-					field.unpack = packed[field.unpack]
-				end
 			else
 				wire_type = wire_types.message
 			end
-		elseif field.is_unpacked then
-			field.unpack = packed[ftype]
 		else
 			field.unpack = basic[ftype]
 		end
