@@ -155,6 +155,12 @@ svarint32 = function(data, off, max_off)
 	return unzigzag32(num), off
 end,
 
+bool = function(data, off, max_off)
+	local num
+	num, off = unpack_varint32(data, off, max_off)
+	return num ~= 0, off
+end,
+
 fixed64 = function(data, off, max_off)
 	if (off + 7) > max_off then
 		error(sformat("Malformed fixed64, truncated ((off:%d + 7) > max_off:%d)", off, max_off))
@@ -454,7 +460,6 @@ local map_types = {
 -- varints
 int32  = "varint32",
 uint32 = "varuint32",
-bool   = "varint32",
 enum   = "varint32",
 int64  = "varint64",
 uint64 = "varuint64",

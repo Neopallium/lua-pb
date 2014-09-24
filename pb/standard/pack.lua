@@ -156,6 +156,12 @@ svarint32 = function(buf, off, len, num)
 	return append(buf, off, len, pack_varint32(zigzag32(num)))
 end,
 
+bool = function(buf, off, len, bool)
+	local num = bool and 1 or 0
+	if bool == 0 then num = 0 end
+	return append(buf, off, len, pack_varint32(num))
+end,
+
 fixed64 = function(buf, off, len, num)
 	local t = type(num)
 	if t == 'number' then
@@ -391,7 +397,6 @@ local map_types = {
 -- varints
 int32  = "varint32",
 uint32 = "varint32",
-bool   = "varint32",
 enum   = "varint32",
 int64  = "varint64",
 uint64 = "varint64",
