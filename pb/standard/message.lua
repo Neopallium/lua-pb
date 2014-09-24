@@ -157,13 +157,13 @@ function _M.def(parent, name, ast)
 			end
 			return encode(self, depth)
 		end
-		function methods:Merge(data, format, off)
+		function methods:Merge(data, format, off, len)
 			format = format or 'binary'
 			local decode = mt.decode[format]
 			if not decode then
 				return false, "Unsupported serialization format: " .. format
 			end
-			return decode(self, data, off or 1)
+			return decode(self, data, off or 1, len or #data)
 		end
 		function methods:Serialize(format, depth)
 			-- validate message before serialization.
@@ -172,17 +172,17 @@ function _M.def(parent, name, ast)
 			-- now serialize message
 			return self:SerializePartial(format, depth)
 		end
-		function methods:ParsePartial(data, format, off)
+		function methods:ParsePartial(data, format, off, len)
 			-- Clear message before parsing it.
 			self:Clear()
 			-- Merge message data into empty message.
-			return self:Merge(data, format, off)
+			return self:Merge(data, format, off, len)
 		end
-		function methods:Parse(data, format, off)
+		function methods:Parse(data, format, off, len)
 			-- Clear message before parsing it.
 			self:Clear()
 			-- Merge message data into empty message.
-			local msg, off_err = self:Merge(data, format, off)
+			local msg, off_err = self:Merge(data, format, off, len)
 			if not msg then return msg, off_err end
 			-- validate message.
 			local init, errmsg = self:IsInitialized()

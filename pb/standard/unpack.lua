@@ -62,7 +62,7 @@ module(...)
 local make_int64 = char
 
 local LNumMaxOff = 128 ^ 6
-local function unpack_varint64_raw(num, data, off, signed)
+local function unpack_varint64_raw(num, data, off, max_off, signed)
 	-- encode first 48bits
 	b1 = band(num, 0xFF)
 	num = floor(num / 256)
@@ -83,6 +83,9 @@ local function unpack_varint64_raw(num, data, off, signed)
 	while b >= 128 do
 		boff = boff * 128
 		off = off + 1
+		if off > max_off then
+			error(sformat("Malformed varint64, truncated (off:%d > max_off:%d)", off, max_off))
+		end
 		b = data:byte(off)
 		num = num + (band(b, 0x7F) * boff)
 	end
@@ -94,15 +97,18 @@ local function unpack_varint64_raw(num, data, off, signed)
 	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, signed), off + 1
 end
 
-local function unpack_varint64(data, off, signed)
+local function unpack_varint64(data, off, max_off, signed)
 	local b = data:byte(off)
 	local num = band(b, 0x7F)
 	local boff = 128
 	while b >= 128 do
 		off = off + 1
+		if off > max_off then
+			error(sformat("Malformed varint64, truncated (off:%d > max_off:%d)", off, max_off))
+		end
 		b = data:byte(off)
 		if boff > LNumMaxOff and b > 0x1F then
-			return unpack_varint64_raw(num, data, off, signed)
+			return unpack_varint64_raw(num, data, off, max_off, signed)
 		end
 		num = num + (band(b, 0x7F) * boff)
 		boff = boff * 128
@@ -110,12 +116,15 @@ local function unpack_varint64(data, off, signed)
 	return num, off + 1
 end
 
-local function unpack_varint32(data, off)
+local function unpack_varint32(data, off, max_off)
 	local b = data:byte(off)
 	local num = band(b, 0x7F)
 	local boff = 128
 	while b >= 128 do
 		off = off + 1
+		if off > max_off then
+			error(sformat("Malformed varint32, truncated (off:%d > max_off:%d)", off, max_off))
+		end
 		b = data:byte(off)
 		num = num + (band(b, 0x7F) * boff)
 		boff = boff * 128
@@ -124,29 +133,32 @@ local function unpack_varint32(data, off)
 end
 
 local basic = {
-varint64 = function(data, off)
-	return unpack_varint64(data, off, true)
+varint64 = function(data, off, max_off)
+	return unpack_varint64(data, off, max_off, true)
 end,
-varuint64 = function(data, off)
-	return unpack_varint64(data, off, false)
+varuint64 = function(data, off, max_off)
+	return unpack_varint64(data, off, max_off, false)
 end,
 
 varint32 = unpack_varint32,
 varuint32 = unpack_varint32,
 
-svarint64 = function(data, off)
+svarint64 = function(data, off, max_off)
 	local num
-	num, off = unpack_varint64(data, off)
+	num, off = unpack_varint64(data, off, max_off)
 	return unzigzag64(num), off
 end,
 
-svarint32 = function(data, off)
+svarint32 = function(data, off, max_off)
 	local num
-	num, off = unpack_varint32(data, off)
+	num, off = unpack_varint32(data, off, max_off)
 	return unzigzag32(num), off
 end,
 
-fixed64 = function(data, off)
+fixed64 = function(data, off, max_off)
+	if (off + 7) > max_off then
+		error(sformat("Malformed fixed64, truncated ((off:%d + 7) > max_off:%d)", off, max_off))
+	end
 	-- check if the top 12 bits are zero.
 	if data:byte(off + 7) == 0 and data:byte(off + 6) <= 0x1F then
 		return sunpack('<I8', data, off)
@@ -157,7 +169,10 @@ fixed64 = function(data, off)
 	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, false), off + 8
 end,
 
-sfixed64 = function(data, off)
+sfixed64 = function(data, off, max_off)
+	if (off + 7) > max_off then
+		error(sformat("Malformed sfixed64, truncated ((off:%d + 7) > max_off:%d)", off, max_off))
+	end
 	-- check if the top 12 bits are zero.
 	if data:byte(off + 7) == 0 and data:byte(off + 6) <= 0x1F then
 		return sunpack('<i8', data, off)
@@ -168,31 +183,43 @@ sfixed64 = function(data, off)
 	return make_int64(b8,b7,b6,b5,b4,b3,b2,b1, true), off + 8
 end,
 
-double = function(data, off)
+double = function(data, off, max_off)
+	if (off + 7) > max_off then
+		error(sformat("Malformed double, truncated ((off:%d + 7) > max_off:%d)", off, max_off))
+	end
 	return sunpack('<d', data, off)
 end,
 
-fixed32 = function(data, off)
+fixed32 = function(data, off, max_off)
+	if (off + 3) > max_off then
+		error(sformat("Malformed fixed32, truncated ((off:%d + 3) > max_off:%d)", off, max_off))
+	end
 	return sunpack('<I4', data, off)
 end,
 
-sfixed32 = function(data, off)
+sfixed32 = function(data, off, max_off)
+	if (off + 3) > max_off then
+		error(sformat("Malformed sfixed32, truncated ((off:%d + 3) > max_off:%d)", off, max_off))
+	end
 	return sunpack('<i4', data, off)
 end,
 
-float = function(data, off)
+float = function(data, off, max_off)
+	if (off + 3) > max_off then
+		error(sformat("Malformed float, truncated ((off:%d + 3) > max_off:%d)", off, max_off))
+	end
 	return sunpack('<f', data, off)
 end,
 
-string = function(data, off, len)
+string = function(data, off, max_off)
 	-- decode string data.
-	return data:sub(off, len), len + 1
+	return data:sub(off, max_off), max_off + 1
 end,
 }
 
-local function decode_field_tag(data, off)
+local function decode_field_tag(data, off, max_off)
 	local tag_type
-	tag_type, off = unpack_varint32(data, off)
+	tag_type, off = unpack_varint32(data, off, max_off)
 	local tag = rshift(tag_type, 3)
 	local wire_type = band(tag_type, 7)
 	return tag, wire_type, off
@@ -203,21 +230,21 @@ end
 --
 local unpack_unknown_field
 
-local function try_unpack_unknown_message(data, off, len)
+local function try_unpack_unknown_message(data, off, max_off)
 	local tag, wire_type, val
 	-- create new list of unknown fields.
 	local msg = new_unknown()
 	-- unpack fields for unknown message
-	while (off <= len) do
+	while (off <= max_off) do
 		-- decode field tag & wire_type
-		tag, wire_type, off = decode_field_tag(data, off)
+		tag, wire_type, off = decode_field_tag(data, off, max_off)
 		-- unpack field
-		val, off = unpack_unknown_field(data, off, len, tag, wire_type, msg)
+		val, off = unpack_unknown_field(data, off, max_off, tag, wire_type, msg)
 	end
 	-- validate message
-	if (off - 1) ~= len then
-		error(sformat("Malformed Message, truncated ((off:%d) - 1) ~= len:%d): %s",
-			off, len, tostring(msg)))
+	if (off - 1) ~= max_off then
+		error(sformat("Malformed Message, truncated (off:%d ~= max_off:%d): %s",
+			off - 1, max_off, tostring(msg)))
 	end
 	return msg, off
 end
@@ -225,49 +252,53 @@ end
 local fixed64 = basic.fixed64
 local fixed32 = basic.fixed32
 local wire_unpack = {
-[0] = function(data, off, len, tag, unknowns)
+[0] = function(data, off, max_off, tag, unknowns)
 	local val
 	-- unpack varint
-	val, off = unpack_varint32(data, off)
+	val, off = unpack_varint32(data, off, max_off)
 	-- add to list of unknown fields
 	unknowns:addField(tag, 0, val)
 	return val, off
 end,
-[1] = function(data, off, len, tag, unknowns)
+[1] = function(data, off, max_off, tag, unknowns)
 	local val
 	-- unpack 64-bit field
-	val, off = fixed64(data, off)
+	val, off = fixed64(data, off, max_off)
 	-- add to list of unknown fields
 	unknowns:addField(tag, 1, val)
 	return val, off
 end,
-[2] = function(data, off, len, tag, unknowns)
-	local len, end_off, val
+[2] = function(data, off, max_off, tag, unknowns)
+	local field_end, val
 	-- decode data length.
-	len, off = unpack_varint32(data, off)
-	end_off = off + len
+	local len, off = unpack_varint32(data, off, max_off)
+	field_end = off + len - 1
+	if field_end > max_off then
+		error(sformat("Malformed Message, truncated length-delimited field (field_end:%d) > (max_off:%d)",
+			field_end, max_off))
+	end
 	-- try to decode as a message
 	local status
 	if len > 1 then
-		status, val = pcall(try_unpack_unknown_message, data, off, end_off - 1)
+		status, val = pcall(try_unpack_unknown_message, data, off, field_end)
 	end
 	if not status then
 		-- failed to decode as a message
 		-- decode as raw data.
-		val = data:sub(off, end_off - 1)
+		val = data:sub(off, field_end)
 	end
 	-- add to list of unknown fields
 	unknowns:addField(tag, 2, val)
-	return val, end_off
+	return val, field_end + 1
 end,
-[3] = function(data, off, len, group_tag, unknowns)
+[3] = function(data, off, max_off, group_tag, unknowns)
 	local tag, wire_type, val
 	-- add to list of unknown fields
 	local group = unknowns:addGroup(group_tag)
 	-- unpack fields for unknown group.
-	while (off <= len) do
+	while (off <= max_off) do
 		-- decode field tag & wire_type
-		tag, wire_type, off = decode_field_tag(data, off)
+		tag, wire_type, off = decode_field_tag(data, off, max_off)
 		-- check for 'End group' tag
 		if wire_type == 4 then
 			if tag ~= group_tag then
@@ -276,49 +307,50 @@ end,
 			return group, off
 		end
 		-- unpack field
-		val, off = unpack_unknown_field(data, off, len, tag, wire_type, group)
+		val, off = unpack_unknown_field(data, off, max_off, tag, wire_type, group)
 	end
 	error("Malformed Group, missing 'End group' tag")
 end,
 [4] = nil,
-[5] = function(data, off, len, tag, unknowns)
+[5] = function(data, off, max_off, tag, unknowns)
 	local val
 	-- unpack 32-bit field
-	val, off = fixed32(data, off)
+	val, off = fixed32(data, off, max_off)
 	-- add to list of unknown fields
 	unknowns:addField(tag, 5, val)
 	return val, off
 end,
 }
 
-function unpack_unknown_field(data, off, len, tag, wire_type, unknowns)
+function unpack_unknown_field(data, off, max_off, tag, wire_type, unknowns)
 	local funpack = wire_unpack[wire_type]
 	if funpack then
-		return funpack(data, off, len, tag, unknowns)
+		return funpack(data, off, max_off, tag, unknowns)
 	end
-	error(sformat("Invalid wire_type=%d, for unknown field=%d, off=%d, len=%d",
-		wire_type, tag, off, len))
+	error(sformat("Invalid wire_type=%d, for unknown field=%d, off=%d, max_off=%d",
+		wire_type, tag, off, max_off))
 end
 
 --
--- unpacked field
+-- unpack field
 --
-local function unpack_field(data, off, len, field, mdata, wire_type)
+local function unpack_field(data, off, max_off, field, mdata, wire_type)
 	local name = field.name
 	local val
-	local field_len = len
+	local field_end = max_off
 	local funpack = field.unpack
 
 	-- check if wiretype is length-delimited
 	if wire_type == 2 then
+		local len
 		-- decode field length.
-		field_len, off  = unpack_varint32(data, off, len)
+		len, off  = unpack_varint32(data, off, max_off)
 		-- change field length to offset.
-		field_len = off + field_len - 1
+		field_end = off + len - 1
 		-- make sure field length is less then message length.
-		if field_len > len then
-			error(sformat("Malformed Field, truncated field_len:%d ~= len:%d): %s",
-				field_len, len, field.name))
+		if field_end > max_off then
+			error(sformat("Malformed Field, truncated field_end:%d > max_off:%d): %s",
+				field_end, max_off, field.name))
 		end
 	end
 
@@ -333,14 +365,14 @@ local function unpack_field(data, off, len, field, mdata, wire_type)
 		if wire_type == 2 and field.wire_type ~= 2 then
 			-- unpack length-delimited packed array
 			local i=#arr
-			while (off <= field_len) do
+			while (off <= field_end) do
 				i = i + 1
-				arr[i], off = funpack(data, off, field_len)
+				arr[i], off = funpack(data, off, field_end)
 			end
 			return arr, off
 		end
 		-- unpack repeated field (just one)
-		arr[#arr + 1], off = funpack(data, off, field_len)
+		arr[#arr + 1], off = funpack(data, off, field_end)
 		return arr, off
 	end
 	-- non-repeated field
@@ -349,19 +381,19 @@ local function unpack_field(data, off, len, field, mdata, wire_type)
 			field.wire_type, wire_type))
 	end
 	-- unpack field value.
-	val, off = funpack(data, off, field_len)
+	val, off = funpack(data, off, field_end)
 	mdata[name] = val
 	return val, off
 end
 
-local function unpack_fields(data, off, len, msg, tags, is_group)
+local function unpack_fields(data, off, max_off, msg, tags, is_group)
 	local tag, wire_type, field, val
 	local mdata = msg['.data']
 	local unknowns
 
-	while (off <= len) do
+	while (off <= max_off) do
 		-- decode field tag & wire_type
-		tag, wire_type, off = decode_field_tag(data, off)
+		tag, wire_type, off = decode_field_tag(data, off, max_off)
 		-- check for "End group"
 		if wire_type == 4 then
 			if not is_group then
@@ -371,7 +403,7 @@ local function unpack_fields(data, off, len, msg, tags, is_group)
 		end
 		field = tags[tag]
 		if field then
-			val, off = unpack_field(data, off, len, field, mdata, wire_type)
+			val, off = unpack_field(data, off, max_off, field, mdata, wire_type)
 		else
 			if not unknowns then
 				-- check if Message already has Unknown fields object.
@@ -383,7 +415,7 @@ local function unpack_fields(data, off, len, msg, tags, is_group)
 				end
 			end
 			-- unpack Unknown field
-			val, off = unpack_unknown_field(data, off, len, tag, wire_type, unknowns)
+			val, off = unpack_unknown_field(data, off, max_off, tag, wire_type, unknowns)
 		end
 	end
 	-- Groups should not end here.
@@ -391,16 +423,16 @@ local function unpack_fields(data, off, len, msg, tags, is_group)
 		error("Malformed Group, truncated, missing 'End group' tag: " .. tostring(msg))
 	end
 	-- validate message
-	if (off - 1) ~= len then
-		error(sformat("Malformed Message, truncated ((off:%d) - 1) ~= len:%d): %s",
-			off, len, tostring(msg)))
+	if (off - 1) ~= max_off then
+		error(sformat("Malformed Message, truncated ((off:%d) - 1) ~= max_off:%d): %s",
+			off, max_off, tostring(msg)))
 	end
 	return msg, off
 end
 
-local function group(data, off, len, msg, tags, end_tag)
+local function group(data, off, max_off, msg, tags, end_tag)
 	-- Unpack group fields.
-	msg, off = unpack_fields(data, off, len, msg, tags, true)
+	msg, off = unpack_fields(data, off, max_off, msg, tags, true)
 	-- validate 'End group' tag
 	if data:sub(off - #end_tag, off - 1) ~= end_tag then
 		error("Malformed Group, invalid 'End group' tag: " .. tostring(msg))
@@ -408,9 +440,9 @@ local function group(data, off, len, msg, tags, end_tag)
 	return msg, off
 end
 
-local function message(data, off, len, msg, tags)
+local function message(data, off, max_off, msg, tags)
 	-- Unpack message fields.
-	return unpack_fields(data, off, len, msg, tags, false)
+	return unpack_fields(data, off, max_off, msg, tags, false)
 end
 
 --
@@ -445,19 +477,19 @@ local function get_type_unpack(mt)
 		if mt.is_enum then
 			local unpack_enum = basic.enum
 			local values = mt.values
-			unpack = function(data, off, len, enum)
+			unpack = function(data, off, max_off, enum)
 				local enum
-				enum, off = unpack_enum(data, off, len)
+				enum, off = unpack_enum(data, off, max_off)
 				return values[enum], off
 			end
 		elseif mt.is_message then
 			local tags = mt.tags
 			local new = mt.new
-			unpack = function(data, off, len, msg)
+			unpack = function(data, off, max_off, msg)
 				if not msg then
 					msg = new()
 				end
-				return message(data, off, len, msg, tags)
+				return message(data, off, max_off, msg, tags)
 			end
 			register_fields(mt)
 		elseif mt.is_group then
@@ -465,11 +497,11 @@ local function get_type_unpack(mt)
 			local new = mt.new
 			-- encode group end tag.
 			local end_tag = encode_field_tag(mt.tag, wire_types.group_end)
-			unpack = function(data, off, len, msg)
+			unpack = function(data, off, max_off, msg)
 				if not msg then
 					msg = new()
 				end
-				return group(data, off, len, msg, tags, end_tag)
+				return group(data, off, max_off, msg, tags, end_tag)
 			end
 			register_fields(mt)
 		end
@@ -515,8 +547,8 @@ function register_msg(mt)
 	-- setup 'unpack' function for this message type.
 	get_type_unpack(mt)
 	-- create decode callback closure for this message type.
-	return function(msg, data, off)
-		return message(data, off, #data, msg, tags)
+	return function(msg, data, off, len)
+		return message(data, off, off + (len or #data) - 1, msg, tags)
 	end
 end
 
