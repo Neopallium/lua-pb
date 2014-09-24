@@ -294,16 +294,16 @@ local function pack_length_field(buf, off, len, field, val)
 	return off, len + field_len + #len_data
 end
 
-local function pack_repeated(buf, off, len, field, arr)
+local function pack_repeated(buf, off, len, field, arr, arr_len)
 	local pack = field.pack
 	local tag = field.tag_type
 	if field.has_length then
-		for i=1, #arr do
+		for i=1, arr_len do
 			-- pack length-delimited field
 			off, len = pack_length_field(buf, off, len, field, arr[i])
 		end
 	else
-		for i=1, #arr do
+		for i=1, arr_len do
 			-- pack field tag.
 			off, len = append(buf, off, len, tag)
 
@@ -338,12 +338,14 @@ local function pack_fields(buf, off, len, msg, fields)
 		if val then
 			if val ~= field.default or field.is_required then
 				if field.is_repeated then
-					if field.is_packed then
+					local val_len = #val
+					-- only use packed encoding when there is more then one element.
+					if field.is_packed and val_len > 1 then
 						-- pack length-delimited field
 						off, len = pack_length_field(buf, off, len, field, val)
 					else
 						-- pack repeated field
-						off, len = pack_repeated(buf, off, len, field, val)
+						off, len = pack_repeated(buf, off, len, field, val, val_len)
 					end
 				elseif field.has_length then
 					-- pack length-delimited field
