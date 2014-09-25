@@ -157,9 +157,9 @@ svarint32 = function(buf, off, len, num)
 end,
 
 bool = function(buf, off, len, bool)
-	local num = bool and 1 or 0
-	if bool == 0 then num = 0 end
-	return append(buf, off, len, pack_varint32(num))
+	local b = bool and '\1' or '\0'
+	if bool == 0 then b = '\0' end
+	return append(buf, off, len, b)
 end,
 
 fixed64 = function(buf, off, len, num)
