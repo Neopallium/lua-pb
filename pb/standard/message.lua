@@ -141,12 +141,6 @@ function _M.def(parent, name, ast)
 			-- field is a user type, it needs to be resolved.
 			field.need_resolve = true
 		end
-		-- add has_<name> method.
-		local name = field.name
-		methods['has_' .. name] = function(self)
-			local data = rawget(self, '.data') -- field data.
-			return data[name] and true or false
-		end
 	end
 
 	-- Type methods
@@ -198,6 +192,11 @@ function _M.def(parent, name, ast)
 	end
 
 	-- common methods.
+		-- HasField()
+	function methods:HasField(name)
+		local data = rawget(self, '.data') -- field data.
+		return not not data[name]
+	end
 		-- Clear()
 	function methods:Clear()
 		local data = rawget(self, '.data') -- field data.
