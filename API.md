@@ -48,7 +48,7 @@ Checks if the message is initialized.
 local is_init, errmsg = msg:IsInitialized()
 ```
 
-## Merge(data, format, off)
+## Merge(data, format, off, len)
 
 Merges serialized protocol buffer data into this message.
 
@@ -63,22 +63,23 @@ into the existing composite.
 Args:
 
 * data: A serialized message encode in `format`.
-* format: The optional encoding format of `data`.  (defaults to "binary").
+* format: The optional encoding format of `data`.  (defaults to "binary")
 * off: Optional offset into `data`.  (defaults to 1)
+* len: Optional number of bytes to parse from `data`.  (defaults to `#data`)
 
 Formats:
 
 * binary
 
 ```lua
-local off = msg:Merge(data, 'text')
+local msg, off = msg:Merge(data, 'text')
 ```
 
-## Parse(data, format, off)
+## Parse(data, format, off, len)
 
 Like MergeFromString(), except we clear the object first.
 
-## ParsePartial(data, format, off)
+## ParsePartial(data, format, off, len)
 
 Like Parse(), but accepts messages that are missing required fields. 
 
@@ -112,8 +113,7 @@ message is initialized.
 A message will store all unknown fields in field 'unknown_fields'
 
 ```lua
-local unknowns = msg.unknown_fields
-for i,v in ipairs(unknowns) do
+for i,v in ipairs(msg.unknown_fields) do
 	print("idx =", i, "tag =", v.tag, "wiretype =", v.wire, "value =", v.value)
 end
 ```
