@@ -157,8 +157,9 @@ svarint32 = function(buf, off, len, num)
 end,
 
 bool = function(buf, off, len, bool)
-	local b = bool and '\1' or '\0'
-	if bool == 0 then b = '\0' end
+	local b = '\0'
+	-- check for true.  Make zero false.
+	if bool and bool ~= 0 then b = '\1' end
 	return append(buf, off, len, b)
 end,
 
