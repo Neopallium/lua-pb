@@ -273,6 +273,7 @@ GroupName = Cap,
 ID = Cap,
 Constant = Cap,
 IntLit = tonumber,
+SIntLit = tonumber,
 SNumLit = tonumber,
 StrLit = function(quoted)
 	assert(quoted:sub(1,1) == '"')
