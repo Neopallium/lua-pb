@@ -17,7 +17,7 @@ package org.test;
 message Parent {
 	message Child {
 		message GrandChild {
-			retuired int32 GrandChildField = 1;
+			required int32 GrandChildField = 1;
 		}
 		required int32 ChildField = 1;
 	}

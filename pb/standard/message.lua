@@ -64,9 +64,10 @@ function _M.def(parent, name, ast)
 
 	-- create Metatable for Message/Group.
 	local is_group = (ast['.type'] == 'group')
+	local fullname = ((parent['.fullname'] and parent['.fullname'] .. '.') or '') .. name
 	local mt = {
-	fullname = ((parent['.fullname'] and parent['.fullname'] .. '.') or '') .. name,
 	name = name,
+	fullname = fullname,
 	is_message = not is_group,
 	is_group = is_group,
 	fields = fields,
