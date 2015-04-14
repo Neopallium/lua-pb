@@ -8,6 +8,42 @@ pb.require(name)
 
 # protobuf message methods
 
+## FullName()
+
+Returns fully qualified message name e.g. in case of:
+```protobuf
+package org.test;
+
+message Parent {
+	message Child {
+		message GrandChild {
+			retuired int32 GrandChildField = 1;
+		}
+		required int32 ChildField = 1;
+	}
+	required int32 ParentField = 1;
+}
+```
+it will be:
+
+```protobuf
+	org.test.Parent
+	org.test.Parent.Child
+	org.test.Parent.Child.GrandChild
+```
+
+```lua
+msg:FullName()
+```
+
+## Name()
+
+Returns message name.
+
+```lua
+msg:Name()
+```
+
 ## MergeFrom(other_msg)
 
 Merges the contents of the specified message into the current message.

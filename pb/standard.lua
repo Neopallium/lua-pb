@@ -234,6 +234,7 @@ function defines.message(parent, name, ast)
 	local pub = setmetatable({
 	['.type'] = ast['.type'],
 	['.parent'] = parent,
+	['.fullname'] = ((parent['.fullname'] and parent['.fullname'] .. '.') or '') .. name,
 	},{
 	-- make the 'public' table callable as the Message contructor.
 	__call = function(tab, data)
