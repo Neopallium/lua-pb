@@ -161,6 +161,7 @@ function load_proto_ast(ast, name, backend, require)
 
 	-- Use sentinel mark in cache. (to detect import loops).
 	if name then
+		ast.filename = name
 		b.cache[name] = loading
 	end
 

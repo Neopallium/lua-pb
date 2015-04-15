@@ -64,9 +64,12 @@ function _M.def(parent, name, ast)
 
 	-- create Metatable for Message/Group.
 	local is_group = (ast['.type'] == 'group')
+	local filename = parent['.filename']
+	filename = (filename and filename .. '.proto') or ''
 	local fullname = ((parent['.fullname'] and parent['.fullname'] .. '.') or (parent['.package'] and parent['.package'] .. '.') or '') .. name
 	local mt = {
 	name = name,
+	filename = filename,
 	fullname = fullname,
 	is_message = not is_group,
 	is_group = is_group,
@@ -194,6 +197,10 @@ function _M.def(parent, name, ast)
 	end
 
 	-- common methods.
+		-- FileName()
+	function methods:FileName()
+		return filename
+	end
 		-- FullName()
 	function methods:FullName()
 		return fullname

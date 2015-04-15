@@ -8,6 +8,13 @@ pb.require(name)
 
 # protobuf message methods
 
+## FileName()
+Returns '.proto' file name and path there this message is located.
+
+```lua
+msg:FileName()
+```
+
 ## FullName()
 
 Returns fully qualified message name e.g. in case of:

@@ -1,0 +1,11 @@
+package org.test;
+
+message Parent {
+	message Child {
+		message GrandChild {
+			required int32 GrandChildField = 1;
+		}
+		required GrandChild ChildField = 1;
+	}
+	required Child ParentField = 1;
+}

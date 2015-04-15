@@ -234,6 +234,7 @@ function defines.message(parent, name, ast)
 	local pub = setmetatable({
 	['.type'] = ast['.type'],
 	['.parent'] = parent,
+	['.filename'] = parent['.filename'],
 	['.fullname'] = ((parent['.fullname'] and parent['.fullname'] .. '.') or (parent['.package'] and parent['.package'] .. '.') or '') .. name,
 	},{
 	-- make the 'public' table callable as the Message contructor.
@@ -366,6 +367,7 @@ function compile(ast)
 	local proto = {
 		['.package'] = ast.package,
 		['.imports'] = ast.imports,
+		['.filename'] = ast.filename,
 	}
 	-- phaze one: define types.
 	define_types(proto, ast.types)
