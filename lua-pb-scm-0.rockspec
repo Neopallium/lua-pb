@@ -38,6 +38,7 @@ build	= {
 			['pb.standard.buffer']  = "pb/standard/buffer.lua",
 			['pb.standard.unknown'] = "pb/standard/unknown.lua",
 			['pb.standard.dump']    = "pb/standard/dump.lua",
+			['pb.standard.zigzag']  = "pb/standard/zigzag.lua",
 		}
 	}
 }
