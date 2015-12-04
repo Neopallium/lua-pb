@@ -235,7 +235,7 @@ function defines.message(parent, name, ast)
 	['.type'] = ast['.type'],
 	['.parent'] = parent,
 	['.filename'] = parent['.filename'],
-	['.fullname'] = ((parent['.fullname'] and parent['.fullname'] .. '.') or (parent['.package'] and parent['.package'] .. '.') or '') .. name,
+	['.fullname'] = mt.fullname,
 	},{
 	-- make the 'public' table callable as the Message contructor.
 	__call = function(tab, data)

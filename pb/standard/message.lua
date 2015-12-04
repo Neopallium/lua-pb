@@ -66,7 +66,8 @@ function _M.def(parent, name, ast)
 	local is_group = (ast['.type'] == 'group')
 	local filename = parent['.filename']
 	filename = (filename and filename .. '.proto') or ''
-	local fullname = ((parent['.fullname'] and parent['.fullname'] .. '.') or (parent['.package'] and parent['.package'] .. '.') or '') .. name
+	local package = parent['.package'] or parent['.fullname']
+	local fullname = (package and package .. '.' .. name or name)
 	local mt = {
 	name = name,
 	filename = filename,
