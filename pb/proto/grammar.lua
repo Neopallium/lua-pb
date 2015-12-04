@@ -107,7 +107,7 @@ Extend = V'EXTEND' *S* eV'UserType' *S* eV'{' * V'ExtendBody' *S* eV'}',
 ExtendBody = (S* (V'Group' + V'Field' + V';'))^0,
 
 Enum = V'ENUM' *S* V'ID' *S* eV'{' * (S* (V'Option' + V'EnumField' + V';'))^0 *S* eV'}',
-EnumField = V'ID' *S* eV'=' *S* eV'IntLit' *E,
+EnumField = V'ID' *S* eV'=' *S* eV'SIntLit' *E,
 
 Service = V'SERVICE' *S* eV'ID' *S* eV'{' * (S* (V'Option' + V'rpc' + V';'))^0 *S* eV'}',
 rpc = V'RPC' *S* eV'ID' *S* eV'(' *S* V'UserType' *S* V')' *S*
