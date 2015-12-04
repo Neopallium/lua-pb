@@ -158,7 +158,7 @@ local dump_unknown_fields
 
 local wire_types = {
 [0] = function(buf, off, val, depth)
-	return append(buf, off, ": " .. tostring(val))
+	return append(buf, off, sformat(": %d", val))
 end,
 [1] = function(buf, off, val, depth)
 	return append(buf, off, sformat(": 0x%016x", val))
