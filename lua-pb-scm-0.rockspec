@@ -35,7 +35,6 @@ build	= {
 			['pb.standard.repeated']= "pb/standard/repeated.lua",
 			['pb.standard.pack']    = "pb/standard/pack.lua",
 			['pb.standard.unpack']  = "pb/standard/unpack.lua",
-			['pb.standard.buffer']  = "pb/standard/buffer.lua",
 			['pb.standard.unknown'] = "pb/standard/unknown.lua",
 			['pb.standard.dump']    = "pb/standard/dump.lua",
 			['pb.standard.zigzag']  = "pb/standard/zigzag.lua",
