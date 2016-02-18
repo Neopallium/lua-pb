@@ -34,6 +34,9 @@ local mod_path = string.match(...,".*%.") or ''
 local buffer = require(mod_path .. "buffer")
 local new_buffer = buffer.new
 
+local bit = require'bit'
+local tohex = bit.tohex
+
 local function append(buf, off, data)
 	off = off + 1
 	buf[off] = data
@@ -91,7 +94,9 @@ local function append_raw64(buf, off, fmt, val)
 		return append(buf, off, val:gsub('.', to_hex))
 	end
 	-- LuaJIT (u)int64_t.  split into two 32-bit values.
-	return append(buf, off, sformat('0x%08X%08X', tonumber(val / 0x100000000), tonumber(val % 0x100000000)))
+	off = append(buf, off, "0x")
+	off = append(buf, off, tohex(tonumber(val / 0x100000000), -8))
+	return append(buf, off, tohex(tonumber(val % 0x100000000), -8))
 end
 
 local basic = {
