@@ -76,8 +76,14 @@ end
 
 local function varint_next_byte(num)
 	if num >= 0 and num < 128 then return num end
-	local b = bor(band(num, 0x7F), 0x80)
-	return (b), varint_next_byte(rshift(num, 7))
+  local b = bor(band(num, 0x7F), 0x80)
+  return (b), varint_next_byte(rshift(num, 7))
+end
+
+local function varint_next_byte_pst(num)
+	if num >= 0 and num < 128 then return num end
+  local b = bor(band(num, 0x7F), 0x80)
+  return (b), varint_next_byte_pst(floor(num / 128))
 end
 
 local function append(buf, off, len, data)
@@ -113,8 +119,12 @@ module(...)
 
 local function pack_varint64(num)
 	local num, t = normalize_number(num)
-	if t == 'number' then
-		return char(varint_next_byte(num))
+  if t == 'number' then
+    if num >= 0 then
+      return char(varint_next_byte_pst(num))
+    else
+      return char(varint_next_byte(num))
+    end
 	end
 	if t == 'string' then
 		return pack_varint64_raw(num)
@@ -360,7 +370,7 @@ local function pack_fields(buf, off, len, msg, fields)
 				else -- is basic type.
 					-- pack field tag.
 					off, len = append(buf, off, len, field.tag_type)
-			
+
 					-- pack field
 					off, len = field.pack(buf, off, len, val)
 				end
