@@ -80,6 +80,24 @@ local function varint_next_byte(num)
 	return (b), varint_next_byte(rshift(num, 7))
 end
 
+-- convert number to unsigned int32
+local function uint32(num)
+	num = band(num, 0xFFFFFFFF)
+	if num < 0 then
+		-- clear the top 32bits.
+		num = num + 0x100000000
+	end
+	return num
+end
+
+local function pack_varint64_num(num)
+	if num >= 0 and num <= 0xFFFFFFFF then
+		return char(varint_next_byte(num))
+	end
+	local h, l = uint32(floor(num / 0x100000000)), uint32(num)
+	return char(varint64_next_byte_h_l(h, l))
+end
+
 local function append(buf, off, len, data)
 	off = off + 1
 	buf[off] = data
@@ -114,7 +132,7 @@ module(...)
 local function pack_varint64(num)
 	local num, t = normalize_number(num)
 	if t == 'number' then
-		return char(varint_next_byte(num))
+		return pack_varint64_num(num)
 	end
 	if t == 'string' then
 		return pack_varint64_raw(num)
@@ -135,7 +153,7 @@ local function pack_varint32(num)
 		num = num % 0x100000000
 	end
 	if t == 'number' then
-		return char(varint_next_byte(num))
+		return pack_varint64_num(num)
 	end
 	return pack_varint64_cdata(num)
 end
