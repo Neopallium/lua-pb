@@ -48,21 +48,26 @@ local band = bit.band
 local bor = bit.bor
 local rshift = bit.rshift
 
+local function varint_next_byte(num)
+	if num >= 0 and num < 128 then return num end
+	local b = bor(band(num, 0x7F), 0x80)
+	return (b), varint_next_byte(rshift(num, 7))
+end
+
 local function varint64_next_byte_h_l(h, l)
-	if l >= 0 and l < 128 then
-		if h > 0 then
-			-- merg high 32-bits with the last 4 bits from the low 32-bits
-			l = (h * 16) + l
-		end
-		if l >= 0 and l < 128 then
-			-- done.
-			return l
-		end
-		-- clear high 32-bits.
-		h = 0
+	if h ~= 0 then
+		-- encode lower 28 bits.
+		local b1 = bor(band(l, 0x7F), 0x80)
+		local b2 = bor(band(rshift(l, 7), 0x7F), 0x80)
+		local b3 = bor(band(rshift(l, 14), 0x7F), 0x80)
+		local b4 = bor(band(rshift(l, 21), 0x7F), 0x80)
+		-- merg high 32-bits with the last 4 bits from the low 32-bits
+		l = (h * 16) + band(rshift(l, 28), 0xF)
+		-- Use variable length encoding of higher 36 bits.
+		return b1, b2, b3, b4, varint_next_byte(l)
 	end
-	local b = bor(band(l, 0x7F), 0x80)
-	return (b), varint64_next_byte_h_l(h, floor(l / 128))
+	-- No high bits.  Use variable length encoding of low bits.
+	return varint_next_byte(l)
 end
 
 local function pack_varint64_raw(num)
@@ -72,12 +77,6 @@ end
 
 local function pack_varint64_cdata(num)
 	return char(varint64_next_byte_h_l(tonumber(num / 0x100000000), tonumber(num % 0x100000000)))
-end
-
-local function varint_next_byte(num)
-	if num >= 0 and num < 128 then return num end
-	local b = bor(band(num, 0x7F), 0x80)
-	return (b), varint_next_byte(rshift(num, 7))
 end
 
 -- convert number to unsigned int32
