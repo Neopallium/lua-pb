@@ -17,7 +17,7 @@ msg.phone = {phone_work}
 pb.print(msg)
 
 print("Encode person message to binary.")
-local bin = msg:Serialize()
+local bin = assert(msg:Serialize())
 print("bytes =", #bin)
 
 print("Decode person message from binary.")
