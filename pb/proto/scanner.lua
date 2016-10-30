@@ -56,8 +56,6 @@ local identChar = AlphaNum + P"_"
 local not_identChar = -identChar
 local ident = (AZ + P"_") * (identChar)^0
 
-local quote = P'"'
-
 -------------------------------------------------------------------------------
 ------------------------- Util. functions.
 -------------------------------------------------------------------------------
@@ -146,7 +144,9 @@ SNUMERIC = hexLit + octLit + floatLit + sdecLit
 
 IDENTIFIER = ident
 
-STRING = quote * ((1 - S'"\n\r\\') + (P'\\' * 1))^0 * (quote + error"unfinished string")
+local singlequoted = P"'" * ((1 - S"'\n\r\\") + (P'\\' * 1))^0 * (P"'" + error"unfinished single-quoted string")
+local doublequoted = P'"' * ((1 - S'"\n\r\\') + (P'\\' * 1))^0 * (P'"' + error"unfinished double-quoted string")
+STRING = singlequoted + doublequoted
 
 COMMENT = (P"//" * (1 - P"\n")^0) + (P"/*" * (1 - P"*/")^0 * P"*/")
 

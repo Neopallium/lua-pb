@@ -281,7 +281,7 @@ IntLit = tonumber,
 SIntLit = tonumber,
 SNumLit = tonumber,
 StrLit = function(quoted)
-	assert(quoted:sub(1,1) == '"')
+	-- strip quotes.
 	return quoted:sub(2,-2)
 end,
 BoolLit = function(bool)
