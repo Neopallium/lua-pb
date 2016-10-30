@@ -45,9 +45,15 @@ local num_sign = (S'+-')
 local digit = R'09'
 local hexLit = P"0" * S"xX" * (R('09','af','AF'))^1
 local octLit = P"0" * (R'07')^1
-local floatLit = (digit^1 * ((P".")^-1 * digit^0)^-1 * (S'eE' * num_sign^-1 * digit^1)^-1)
+local decimals = digit^1
+local exponent = S'eE' * num_sign^-1 * decimals
+local floatLit = (decimals * P"." * decimals^-1  * exponent^-1) +
+	(decimals * exponent) +
+	( P"." * decimals * exponent^-1) + P"inf" + P"nan"
+--local floatLit = (digit^1 * ((P".")^-1 * digit^0)^-1 * (S'eE' * num_sign^-1 * digit^1)^-1)
+local sfloatLit = (num_sign)^-1 * floatLit
 local decLit = digit^1
-local sdecLit = (P"-")^-1 * decLit
+local sdecLit = (num_sign)^-1 * decLit
 
 -- alphanumeric
 local AZ = R('az','AZ')
@@ -140,7 +146,7 @@ SYMBOL = literals(symbols)
 INTEGER = hexLit + octLit + decLit
 SINTEGER = hexLit + octLit + sdecLit
 NUMERIC = hexLit + octLit + floatLit + decLit
-SNUMERIC = hexLit + octLit + floatLit + sdecLit
+SNUMERIC = hexLit + octLit + sfloatLit + sdecLit
 
 IDENTIFIER = ident
 
