@@ -94,8 +94,10 @@ GroupName = R'AZ' * (V'Ident')^0,
 UserType = (V'.')^-1 * V'Name',
 
 -- Top-level
-Proto = (S* (V'Message' + V'Extend' + V'Enum' + V'Import' + V'Package' + V'Option' +
+Proto = (S* (V'Message' + V'Extend' + V'Enum' + V'Syntax' + V'Import' + V'Package' + V'Option' +
 	V'Service' + V';'))^0 *S,
+
+Syntax = V'SYNTAX' *S* eV'=' *S* eV'StrLit' *E,
 
 Import = V'IMPORT' *S* eV'StrLit' *E,
 Package = V'PACKAGE' *S* eV'Name' *E,

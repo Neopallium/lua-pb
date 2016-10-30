@@ -136,6 +136,8 @@ local captures = {
 		if sub_type == 'option' then
 			create(proto, 'options')
 			proto.options[sub.name] = sub.value
+		elseif sub_type == 'syntax' then
+			proto.syntax = sub.syntax
 		elseif sub_type == 'package' then
 			proto.package = sub.name
 		elseif sub_type == 'import' then
@@ -154,6 +156,9 @@ local captures = {
 	end
 	return proto
 end,
+Syntax = CapNode("syntax",
+	"syntax"
+),
 Package = CapNode("package",
 	"name"
 ),

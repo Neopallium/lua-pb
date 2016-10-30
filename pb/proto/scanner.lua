@@ -100,6 +100,8 @@ end
 -------------------------------------------------------------------------------
 
 keywords = {
+-- syntax
+"syntax",
 -- package
 "package", "import",
 -- main types
