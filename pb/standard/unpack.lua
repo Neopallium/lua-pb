@@ -516,6 +516,18 @@ local function get_type_unpack(mt)
 	return unpack
 end
 
+local depth = {}
+local depth_limit = 10
+
+local function check_depth(ftype, task)
+	depth[ftype] = depth[ftype] or 0
+	depth[ftype] = depth[ftype] + 1
+	if depth[ftype] < depth_limit then
+		task()
+	end
+	depth[ftype] = depth[ftype] - 1
+end
+
 function register_fields(mt)
 	-- check if the fields where already registered.
 	if mt.unpack then return end
@@ -529,7 +541,7 @@ function register_fields(mt)
 		-- check if the field is a user type
 		local user_type_mt = field.user_type_mt
 		if user_type_mt then
-			field.unpack = get_type_unpack(user_type_mt)
+			check_depth(ftype, function () field.unpack = get_type_unpack(user_type_mt) end)
 			if field.is_group then
 				wire_type = wire_types.group_start
 			elseif user_type_mt.is_enum then
