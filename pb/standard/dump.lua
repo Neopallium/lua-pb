@@ -306,6 +306,18 @@ local function get_type_dump(mt)
 	return dump
 end
 
+local depth = {}
+local depth_limit = 10
+
+local function check_depth(ftype, task)
+	depth[ftype] = depth[ftype] or 0
+	depth[ftype] = depth[ftype] + 1
+	if depth[ftype] < depth_limit then
+		task()
+	end
+	depth[ftype] = depth[ftype] - 1
+end
+
 function register_fields(mt, fields)
 	-- check if the fields where already registered.
 	if mt.dump then return end
@@ -314,7 +326,7 @@ function register_fields(mt, fields)
 		-- check if the field is a user type
 		local user_type_mt = field.user_type_mt
 		if user_type_mt then
-			field.dump = get_type_dump(user_type_mt)
+			check_depth(field.ftype, function () field.dump = get_type_dump(user_type_mt) end)
 		end
 	end
 end
