@@ -460,7 +460,7 @@ local function get_type_pack(mt)
 			pack = function(buf, off, len, msg)
 				return message(buf, off, len, msg, fields)
 			end
-			register_fields(mt, fields)
+			register_fields(mt, fields, pack)
 		elseif mt.is_group then
 			local fields = mt.fields
 			-- encode group end tag.
@@ -468,7 +468,7 @@ local function get_type_pack(mt)
 			pack = function(buf, off, len, msg)
 				return group(buf, off, len, msg, fields, end_tag)
 			end
-			register_fields(mt, fields)
+			register_fields(mt, fields, pack)
 		end
 		-- cache pack function.
 		mt.pack = pack
@@ -476,10 +476,10 @@ local function get_type_pack(mt)
 	return pack
 end
 
-function register_fields(mt, fields)
+function register_fields(mt, fields, pack)
 	-- check if the fields where already registered.
 	if mt.pack then return end
-	local tags = mt.tags
+	mt.pack = pack
 	for i=1,#fields do
 		local field = fields[i]
 		local tag = field.tag

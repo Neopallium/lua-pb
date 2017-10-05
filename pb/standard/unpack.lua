@@ -496,7 +496,7 @@ local function get_type_unpack(mt)
 				end
 				return message(data, off, max_off, msg, tags)
 			end
-			register_fields(mt)
+			register_fields(mt, unpack)
 		elseif mt.is_group then
 			local tags = mt.tags
 			local new = mt.new
@@ -508,7 +508,7 @@ local function get_type_unpack(mt)
 				end
 				return group(data, off, max_off, msg, tags, end_tag)
 			end
-			register_fields(mt)
+			register_fields(mt, unpack)
 		end
 		-- cache unpack function.
 		mt.unpack = unpack
@@ -516,10 +516,10 @@ local function get_type_unpack(mt)
 	return unpack
 end
 
-function register_fields(mt)
+function register_fields(mt, unpack)
 	-- check if the fields where already registered.
 	if mt.unpack then return end
-	local tags = mt.tags
+	mt.unpack = unpack
 	local fields = mt.fields
 	for i=1,#fields do
 		local field = fields[i]

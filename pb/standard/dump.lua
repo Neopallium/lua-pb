@@ -292,13 +292,13 @@ local function get_type_dump(mt)
 			dump = function(buf, off, msg, depth)
 				return message(buf, off, msg, fields, depth)
 			end
-			register_fields(mt, fields)
+			register_fields(mt, fields, dump)
 		elseif mt.is_group then
 			local fields = mt.fields
 			dump = function(buf, off, msg, depth)
 				return group(buf, off, msg, fields, depth)
 			end
-			register_fields(mt, fields)
+			register_fields(mt, fields, dump)
 		end
 		-- cache dump function.
 		mt.dump = dump
@@ -306,9 +306,10 @@ local function get_type_dump(mt)
 	return dump
 end
 
-function register_fields(mt, fields)
+function register_fields(mt, fields, dump)
 	-- check if the fields where already registered.
 	if mt.dump then return end
+	mt.dump = dump
 	for i=1,#fields do
 		local field = fields[i]
 		-- check if the field is a user type
