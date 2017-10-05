@@ -1,0 +1,9 @@
+message A {
+	optional double a1 = 1;
+	optional B a2 = 2;
+}
+
+message B {
+	optional double b1 = 1;
+	optional A b2 = 2;
+}
