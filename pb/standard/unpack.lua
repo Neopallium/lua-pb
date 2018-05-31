@@ -116,10 +116,26 @@ local function unpack_varint64(data, off, max_off, signed)
 	return num, off + 1
 end
 
+local function unpack_neg_varint32(data, off, max_off)
+	local boff = 1
+	local num = 0
+	local bits35 = 34359738368 -- 2^(5*7)
+	for i = 1, 5 do
+		num = num + (band(data:byte(off), 0x7F) * boff)
+		off = off + 1
+		boff = boff * 128
+	end
+	while data:byte(off) >= 128 do
+		off = off + 1
+  end
+	return num - bits35, off + 1
+end
+
 local function unpack_varint32(data, off, max_off)
 	local b = data:byte(off)
 	local num = band(b, 0x7F)
 	local boff = 128
+  local start_off = off
 	while b >= 128 do
 		off = off + 1
 		if off > max_off then
@@ -128,6 +144,9 @@ local function unpack_varint32(data, off, max_off)
 		b = data:byte(off)
 		num = num + (band(b, 0x7F) * boff)
 		boff = boff * 128
+	end
+	if off - start_off + 1 == 10 then
+		return unpack_neg_varint32(data, start_off, max_off)
 	end
 	return num, off + 1
 end

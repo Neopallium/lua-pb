@@ -1,0 +1,4 @@
+message TestInt32
+{
+    optional int32 int32_ = 1;
+}
